@@ -29,8 +29,9 @@ module money_market::ipx_money_market_core {
   use library::rebase::{Self, Rebase};
   use library::math::{d_fmul, d_fdiv_u256, d_fmul_u256, double_scalar};
 
-  friend money_market::ipx_money_market_user_interface;
-  friend money_market::ipx_money_market_dapp_interface;
+  friend money_market::ipx_money_market_sdk_interface;
+  friend money_market::ipx_money_market_publisher_interface;
+  friend money_market::ipx_money_market_module_interface;
   #[test_only]
   friend money_market::ipx_money_market_test;
   #[test_only]

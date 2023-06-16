@@ -1,21 +1,21 @@
-module money_market::ipx_money_market_dapp_interface {
+module money_market::ipx_money_market_sdk_interface {
 
-  use sui::object::{id_address};
   use sui::coin::{Coin};
   use sui::clock::{Clock};
-  use sui::package::{Publisher};
-  use sui::tx_context::{TxContext};
+  use sui::tx_context::{Self, TxContext};
 
-  use ipx::ipx::{IPXStorage, IPX};
+  use ipx::ipx::{IPXStorage};
 
   use sui_dollar::suid::{SUID, SuiDollarStorage};
 
   use oracle::ipx_oracle::{Price as PricePotato};
 
+  use library::utils::{handle_coin_vector, public_transfer_coin};
+
   use money_market::interest_rate_model::{InterestRateModelStorage};
   use money_market::ipx_money_market_core::{Self as money_market, MoneyMarketStorage};
 
-  public fun accrue<T>(
+  entry public fun accrue<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage, 
     clock_object: &Clock
@@ -23,32 +23,36 @@ module money_market::ipx_money_market_dapp_interface {
     money_market::accrue<T>(money_market_storage, interest_rate_model_storage, clock_object);    
   }
 
-  public fun accrue_suid(
+  entry public fun accrue_suid(
     money_market_storage: &mut MoneyMarketStorage, 
     clock_object: &Clock
   ) {
     money_market::accrue_suid(money_market_storage, clock_object);
   }
 
-  public fun deposit<T>(
+  entry public fun deposit<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
     ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
-    asset: Coin<T>,
-    publisher: &Publisher,
+    asset_vector: vector<Coin<T>>,
+    asset_value: u64,
     ctx: &mut TxContext
-  ): Coin<IPX> {
+  ) {
+      let sender = tx_context::sender(ctx);
       
-    money_market::deposit<T>(
-      money_market_storage,
-      interest_rate_model_storage, 
-      ipx_storage,
-      clock_object,
-      asset,
-      id_address(publisher),
-      ctx
-    )
+      public_transfer_coin(
+        money_market::deposit<T>(
+          money_market_storage,
+          interest_rate_model_storage, 
+          ipx_storage,
+          clock_object,
+          handle_coin_vector<T>(asset_vector, asset_value, ctx),
+          sender,
+          ctx
+        ),
+        sender
+      );
   } 
 
   public fun withdraw<T>(
@@ -58,20 +62,24 @@ module money_market::ipx_money_market_dapp_interface {
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     shares_to_remove: u64,
-    publisher: &Publisher,
     ctx: &mut TxContext
-  ): (Coin<T>, Coin<IPX>) {
+  ) {
 
-    money_market::withdraw<T>(
+    let sender = tx_context::sender(ctx);
+
+    let (asset, ipx_coin) = money_market::withdraw<T>(
       money_market_storage,
       interest_rate_model_storage,
       ipx_storage,
       price_potatoes,
       clock_object,
       shares_to_remove,
-      id_address(publisher),
+      sender,
       ctx
-    )
+    );
+
+    public_transfer_coin(asset, sender);
+    public_transfer_coin(ipx_coin, sender);
   }
 
   public fun borrow<T>(
@@ -81,20 +89,24 @@ module money_market::ipx_money_market_dapp_interface {
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     borrow_value: u64,
-    publisher: &Publisher,
     ctx: &mut TxContext    
-  ): (Coin<T>, Coin<IPX>) {
+  ) {
 
-    money_market::borrow<T>(
+    let sender = tx_context::sender(ctx);
+
+    let (asset, ipx_coin) = money_market::borrow<T>(
       money_market_storage,
       interest_rate_model_storage,
       ipx_storage,
       price_potatoes,
       clock_object,
       borrow_value,
-      id_address(publisher),
+      sender,
       ctx
-    )  
+    );
+
+    public_transfer_coin(asset, sender);
+    public_transfer_coin(ipx_coin, sender);    
   }
 
   public fun repay<T>(
@@ -102,25 +114,31 @@ module money_market::ipx_money_market_dapp_interface {
     interest_rate_model_storage: &InterestRateModelStorage,
     ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
-    asset: Coin<T>,
+    asset_vector: vector<Coin<T>>,
+    asset_value: u64,
     principal_to_repay: u64,
-    publisher: &Publisher,
     ctx: &mut TxContext   
-  ): (Coin<T>, Coin<IPX>) {
-    money_market::repay<T>(
-      money_market_storage,
-      interest_rate_model_storage,
-      ipx_storage,
-      clock_object,
-      asset,
-      principal_to_repay,
-      id_address(publisher),
-      ctx
-    )
+  ) {
+
+    let sender = tx_context::sender(ctx);
+
+    let (extra_coin, ipx_coin) = money_market::repay<T>(
+        money_market_storage,
+        interest_rate_model_storage,
+        ipx_storage,
+        clock_object,
+        handle_coin_vector<T>(asset_vector, asset_value, ctx),
+        principal_to_repay,
+        sender,
+        ctx
+    );
+
+    public_transfer_coin(extra_coin, sender);
+    public_transfer_coin(ipx_coin, sender);
   }
 
-  entry public fun enter_market<T>(money_market_storage: &mut MoneyMarketStorage, publisher: &Publisher) {
-    money_market::enter_market<T>(money_market_storage, id_address(publisher));
+  entry public fun enter_market<T>(money_market_storage: &mut MoneyMarketStorage, ctx: &mut TxContext) {
+    money_market::enter_market<T>(money_market_storage, tx_context::sender(ctx));
   }
 
   public fun exit_market<T>(
@@ -128,9 +146,9 @@ module money_market::ipx_money_market_dapp_interface {
     interest_rate_model_storage: &InterestRateModelStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
-    publisher: &Publisher
+    ctx: &mut TxContext
   ) {
-    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, id_address(publisher));
+    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, tx_context::sender(ctx));
   }
 
   public fun borrow_suid(
@@ -141,11 +159,12 @@ module money_market::ipx_money_market_dapp_interface {
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     borrow_value: u64,
-    publisher: &Publisher,
     ctx: &mut TxContext
-  ): (Coin<SUID>, Coin<IPX>) {
+  ) {
     
-    money_market::borrow_suid(
+    let sender = tx_context::sender(ctx);
+    
+    let (coin_suid, coin_ipx) = money_market::borrow_suid(
       money_market_storage,
       interest_rate_model_storage,
       ipx_storage,
@@ -153,9 +172,12 @@ module money_market::ipx_money_market_dapp_interface {
       price_potatoes,
       clock_object,
       borrow_value,
-      id_address(publisher),
+      sender,
       ctx
-    )
+    );
+
+    public_transfer_coin(coin_suid, sender);
+    public_transfer_coin(coin_ipx, sender);
   } 
 
 
@@ -164,57 +186,73 @@ module money_market::ipx_money_market_dapp_interface {
     ipx_storage: &mut IPXStorage, 
     suid_storage: &mut SuiDollarStorage,
     clock_object: &Clock,
-    asset: Coin<SUID>,
+    asset_vector: vector<Coin<SUID>>,
+    asset_value: u64,
     principal_to_repay: u64,
-    publisher: &Publisher,
     ctx: &mut TxContext 
-  ): (Coin<SUID>, Coin<IPX>) {
-    money_market::repay_suid(
-      money_market_storage,
-      ipx_storage,
-      suid_storage,
-      clock_object,
-      asset,
-      principal_to_repay,
-      id_address(publisher),
-      ctx
-    )
+  ) {
+
+    let sender = tx_context::sender(ctx);
+
+    let (extra_coin, ipx_coin) = money_market::repay_suid(
+        money_market_storage,
+        ipx_storage,
+        suid_storage,
+        clock_object,
+        handle_coin_vector<SUID>(asset_vector, asset_value, ctx),
+        principal_to_repay,
+        sender,
+        ctx
+    );
+
+    public_transfer_coin(extra_coin, sender);
+    public_transfer_coin(ipx_coin, sender);
   }
 
-  public fun get_rewards<T>(
+  entry public fun get_rewards<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
     ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
-    publisher: &Publisher,
     ctx: &mut TxContext 
-  ): Coin<IPX> {
-    money_market::get_rewards<T>(
-      money_market_storage,
-      interest_rate_model_storage,
-      ipx_storage,
-      clock_object,
-      id_address(publisher),
-      ctx
-    )
+  ) {
+
+    let sender = tx_context::sender(ctx);
+
+    public_transfer_coin(
+      money_market::get_rewards<T>(
+        money_market_storage,
+        interest_rate_model_storage,
+        ipx_storage,
+        clock_object,
+        sender,
+        ctx
+      ),
+      sender
+    );
   }
 
-  public fun get_all_rewards(
+  entry public fun get_all_rewards(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
     ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
-    publisher: &Publisher,
     ctx: &mut TxContext 
-  ): Coin<IPX> {
-    money_market::get_all_rewards(
-      money_market_storage,
-      interest_rate_model_storage,
-      ipx_storage,
-      clock_object,
-      id_address(publisher),
-      ctx
-    )  
+  ) {
+
+    let sender = tx_context::sender(ctx);
+
+    public_transfer_coin(
+      money_market::get_all_rewards(
+        money_market_storage,
+        interest_rate_model_storage,
+        ipx_storage,
+        clock_object,
+        sender,
+        ctx
+      ),
+      sender
+    );    
   }
 
   public fun liquidate<C, L>(
@@ -223,23 +261,29 @@ module money_market::ipx_money_market_dapp_interface {
     ipx_storage: &mut IPXStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
-    asset: Coin<L>,
+    asset_vector: vector<Coin<L>>,
+    asset_value: u64,
     borrower: address,
-    publisher: &Publisher,
     ctx: &mut TxContext
-  ): Coin<L> { 
+  ) { 
+
+    let sender = tx_context::sender(ctx);
+
+    public_transfer_coin(
       money_market::liquidate<C, L>(
       money_market_storage,
       interest_rate_model_storage,
       ipx_storage,
       price_potatoes,
       clock_object,
-      asset,
+      handle_coin_vector<L>(asset_vector, asset_value, ctx),
       borrower,
-      id_address(publisher),
+      sender,
       ctx
-    )
-  }
+    ),
+    sender
+  );
+   }
 
   public fun liquidate_suid<C>(
     money_market_storage: &mut MoneyMarketStorage,
@@ -248,22 +292,28 @@ module money_market::ipx_money_market_dapp_interface {
     suid_storage: &mut SuiDollarStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
-    asset: Coin<SUID>,
+    asset_vector: vector<Coin<SUID>>,
+    asset_value: u64,
     borrower: address,
-    publisher: &Publisher,
     ctx: &mut TxContext
-  ): Coin<SUID> {
-    money_market::liquidate_suid<C>(
+  ) {
+
+    let sender = tx_context::sender(ctx);
+
+    public_transfer_coin(
+      money_market::liquidate_suid<C>(
       money_market_storage,
       interest_rate_model_storage,
       ipx_storage,
       suid_storage,
       price_potatoes,
       clock_object,
-      asset,
+      handle_coin_vector<SUID>(asset_vector, asset_value, ctx),
       borrower,
-      id_address(publisher),
+      sender,
       ctx
-    )
+    ),
+    sender
+  );
   }
 }
