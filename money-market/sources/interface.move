@@ -1,4 +1,4 @@
-module money_market::ipx_money_market_module_interface {
+module money_market::ipx_money_market_interface {
 
   use sui::coin::{Coin};
   use sui::clock::{Clock};

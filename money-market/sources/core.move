@@ -31,7 +31,7 @@ module money_market::ipx_money_market_core {
 
   friend money_market::ipx_money_market_sdk_interface;
   friend money_market::ipx_money_market_publisher_interface;
-  friend money_market::ipx_money_market_module_interface;
+  friend money_market::ipx_money_market_interface;
   #[test_only]
   friend money_market::ipx_money_market_test;
   #[test_only]
