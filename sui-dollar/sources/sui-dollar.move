@@ -12,9 +12,6 @@ module sui_dollar::suid {
   use sui::tx_context;
   use sui::vec_set::{Self, VecSet};
   use sui::event::{emit};
-  use library::math::{d_fmul_u256};
-
-  const FLASH_MINT_FEE: u256 = 5000000000000000; // 0.005%
 
   const ERROR_NOT_ALLOWED_TO_MINT: u64 = 1;
   const ERROR_NO_ZERO_ADDRESS: u64 = 2;
@@ -103,7 +100,7 @@ module sui_dollar::suid {
   }
 
   public fun flash_mint(storage: &mut SuiDollarStorage, value: u64, ctx: &mut TxContext): (FlashMint, Coin<SUID>) {
-    (FlashMint { burn_amount: value + (d_fmul_u256((value as u256), FLASH_MINT_FEE) as u64) }, coin::from_balance(balance::increase_supply(&mut storage.supply, value), ctx))
+    (FlashMint { burn_amount: value }, coin::from_balance(balance::increase_supply(&mut storage.supply, value), ctx))
   }
 
   public fun read_flash_mint(potato: &FlashMint): u64 {
