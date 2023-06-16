@@ -975,6 +975,9 @@ module money_market::ipx_money_market_core {
 
     // If no time has passed since the last update, there is nothing to do.
     if (timestamp_ms_delta == 0) return;
+    
+    // SUID supports no interest rate loans
+    if (suid_interest_rate_per_ms == 0) return;
 
     // Calculate the interest rate % accumulated for all epochs since the last update
     let interest_rate = timestamp_ms_delta * suid_interest_rate_per_ms;
