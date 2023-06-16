@@ -135,7 +135,8 @@ module money_market::ipx_money_market_core {
   // DO NOT ADD ABILITIES TO THIS STRUCT
   struct FlashLoan<phantom T> {
     market_id: ID,
-    repay_amount: u64
+    repay_amount: u64,
+    fee_amount: u64
   }
 
   // Events
@@ -2088,18 +2089,20 @@ module money_market::ipx_money_market_core {
       let market_data = borrow_market_data(&money_market_storage.market_data_table, market_key);
       let market_balance = borrow_mut_market_balance<T>(&mut money_market_storage.market_balance_bag, market_key);
 
-      let repay_amount = amount + (d_fmul_u256((amount as u256), FLASH_LOAN_FEE) as u64);
+      let fee_amount = (d_fmul_u256((amount as u256), FLASH_LOAN_FEE) as u64);
+      let repay_amount = amount + fee_amount;
 
       let potato = FlashLoan<T> {
         market_id: object::id(market_data),
-        repay_amount
+        repay_amount,
+        fee_amount
       };
 
       (potato, coin::take(&mut market_balance.balance, amount, ctx))
   }
 
-  public fun read_flash_loan<T>(potato: &FlashLoan<T>): (ID, u64) {
-    (potato.market_id, potato.repay_amount)
+  public fun read_flash_loan<T>(potato: &FlashLoan<T>): (ID, u64, u64) {
+    (potato.market_id, potato.repay_amount, potato.fee_amount)
   }
 
   public fun repay_flash_loan<T>(
@@ -2111,15 +2114,17 @@ module money_market::ipx_money_market_core {
       let market_key = get_type_name_string<T>();
 
       // Get market core information
-      let market_data = borrow_market_data(&money_market_storage.market_data_table, market_key);
+      let market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, market_key);
       let market_balance = borrow_mut_market_balance<T>(&mut money_market_storage.market_balance_bag, market_key);
 
-      let FlashLoan { market_id, repay_amount } = potato;
+      let FlashLoan { market_id, repay_amount, fee_amount } = potato;
 
       assert!(object::id(market_data) == market_id, ERROR_WRONG_MARKET_ID);
       assert!(coin::value(&asset) >= repay_amount, ERROR_WRONG_REPAY_AMOUNT);
 
       balance::join(&mut market_balance.balance, coin::into_balance(asset));
+      // Reward the depositors
+      rebase::increase_elastic(&mut market_data.collateral_rebase, fee_amount);
 
       // UnLock the entire system
       money_market_storage.lock = false;
