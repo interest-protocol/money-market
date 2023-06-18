@@ -132,6 +132,18 @@ module money_market::interest_rate_model {
   }
 
   /**
+  * @dev It checks if a coin has an interest rate model already
+  * @param storage The shared object {InterestRateModelStorage}
+  * @param key The key of the coin
+  */
+  public fun has_model(
+    storage: &InterestRateModelStorage,
+    key: String,
+  ): bool {
+    object_table::contains(&storage.interest_rate_object_table, key)
+  }
+
+  /**
   * @dev It sets the interest rate base, jump, kink and multiplier variables for Markets. Only Whirpool package can call it
   * Note that the values are per year. The function will convert them to ms via {get_ms_per_year()}
   * @param storage The shared object {InterestRateModelStorage}
@@ -156,7 +168,7 @@ module money_market::interest_rate_model {
     let multiplier_per_ms = multiplier_per_year / ms_per_year;
     let jump_multiplier_per_ms = jump_multiplier_per_year / ms_per_year;
 
-    if (object_table::contains(&storage.interest_rate_object_table, key)) {
+    if (has_model(storage, key)) {
       let data = object_table::borrow_mut(&mut storage.interest_rate_object_table, key); 
 
       data.base_rate_per_ms = base_rate_per_ms;

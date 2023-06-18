@@ -1226,14 +1226,15 @@ module money_market::ipx_money_market_core {
     let ipx_per_ms = money_market_storage.ipx_per_ms;
 
     // Update the market information before updating its interest rate
-    accrue_internal(
-      borrow_mut_market_data(&mut money_market_storage.market_data_table, market_key), 
-      interest_rate_model_storage, 
-      clock_object,
-      market_key, 
-      ipx_per_ms,
-      total_allocation_points, 
-    );
+    if (interest_rate_model::has_model(interest_rate_model_storage, market_key))
+      accrue_internal(
+        borrow_mut_market_data(&mut money_market_storage.market_data_table, market_key), 
+        interest_rate_model_storage, 
+        clock_object,
+        market_key, 
+        ipx_per_ms,
+        total_allocation_points, 
+      );
 
     // Update the interest rate
     interest_rate_model::set_interest_rate_data<T>(
