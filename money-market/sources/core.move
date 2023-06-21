@@ -730,6 +730,25 @@ module money_market::ipx_money_market_core {
     interest_rate_model_storage: &InterestRateModelStorage,
     ): u64 {
     let market_key = get_type_name_string<T>();
+    get_borrow_rate_per_ms_by_key(
+      money_market_storage,
+      interest_rate_model_storage,
+      market_key
+    )
+  }
+
+  /**
+  * @notice It returns the current interest rate per ms
+  * @param money_market_storage The shared storage of this module 
+  * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
+  * @param market_key The key of a market listed
+  * @return interest rate per ms % for Market of Coin<T>
+  */
+  public fun get_borrow_rate_per_ms_by_key(
+    money_market_storage: &MoneyMarketStorage, 
+    interest_rate_model_storage: &InterestRateModelStorage,
+    market_key : String,
+    ): u64 {
     get_borrow_rate_per_ms_internal(
       money_market_storage,
       borrow_market_data(&money_market_storage.market_data_table, market_key),
@@ -776,9 +795,27 @@ module money_market::ipx_money_market_core {
   public fun get_supply_rate_per_ms<T>(
     money_market_storage: &MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage
+  ): u64 {      
+    get_supply_rate_per_ms_by_key(
+          money_market_storage,
+          interest_rate_model_storage,
+          get_type_name_string<T>()
+        )
+  }
+
+    /**
+  * @notice It returns the current interest rate earned per ms
+  * @param money_market_storage The shared storage of this module 
+  * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
+  * @param market_key The key of a market listed
+  * @return interest rate earned per ms % for Market of Coin<T>
+  */
+  public fun get_supply_rate_per_ms_by_key(
+    money_market_storage: &MoneyMarketStorage, 
+    interest_rate_model_storage: &InterestRateModelStorage,
+    market_key: String
   ): u64 {
-      let market_key = get_type_name_string<T>();
-      assert!(market_key != get_type_name_string<SUID>(), ERROR_SUID_OPERATION_NOT_ALLOWED);
+      if (market_key == get_type_name_string<SUID>()) return 0;
 
       let market_data = borrow_market_data(&money_market_storage.market_data_table, market_key);
       // Other coins follow the start jump rate interest rate model       
@@ -1081,7 +1118,7 @@ module money_market::ipx_money_market_core {
   /****************************************
     STORAGE GETTERS
   **********************************************/ 
-  fun borrow_market_balance<T>(market_balance: &Bag, market_key: String): &MarketBalance<T> {
+  public fun borrow_market_balance<T>(market_balance: &Bag, market_key: String): &MarketBalance<T> {
     bag::borrow(market_balance, market_key)
   }
 
@@ -1089,7 +1126,7 @@ module money_market::ipx_money_market_core {
     bag::borrow_mut(market_balance, market_key)
   }
 
-  fun borrow_market_data(market_data: &ObjectTable<String, Market>, market_key: String): &Market {
+  public fun borrow_market_data(market_data: &ObjectTable<String, Market>, market_key: String): &Market {
     object_table::borrow(market_data, market_key)
   }
 
@@ -1097,7 +1134,7 @@ module money_market::ipx_money_market_core {
     object_table::borrow_mut(market_data, market_key)
   }
 
-  fun borrow_account(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): &Account {
+  public fun borrow_account(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): &Account {
     object_table::borrow(object_table::borrow(accounts_table, market_key), user)
   }
 
@@ -1105,7 +1142,7 @@ module money_market::ipx_money_market_core {
     object_table::borrow_mut(object_table::borrow_mut(accounts_table, market_key), user)
   }
 
-  fun borrow_user_markets_in(markets_in: &Table<address, vector<String>>, user: address): &vector<String> {
+  public fun borrow_user_markets_in(markets_in: &Table<address, vector<String>>, user: address): &vector<String> {
     table::borrow(markets_in, user)
   }
 
@@ -1113,7 +1150,7 @@ module money_market::ipx_money_market_core {
     table::borrow_mut(markets_in, user)
   }
 
-  fun account_exists(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): bool {
+  public fun account_exists(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): bool {
     object_table::contains(object_table::borrow(accounts_table, market_key), user)
   }
 
@@ -2021,7 +2058,7 @@ module money_market::ipx_money_market_core {
     while(index < num_of_markets) {
       let key = *vector::borrow(&all_market_keys, index);
 
-      let (collateral_rewards, loan_rewards) = get_pending_rewards_internal(
+      let (collateral_rewards, loan_rewards) = get_pending_rewards_by_key(
         money_market_storage,
         interest_rate_model_storage, 
         clock_object,
@@ -2065,7 +2102,7 @@ module money_market::ipx_money_market_core {
     // Get the type name of the Coin<T> of this market.
     let market_key = get_type_name_string<T>();
 
-    get_pending_rewards_internal(
+    get_pending_rewards_by_key(
       money_market_storage,
       interest_rate_model_storage, 
       clock_object,
@@ -2517,13 +2554,33 @@ module money_market::ipx_money_market_core {
   }
 
   /**
+  * @notice It returns all markets listed
+  * @param money_market_storage The shared MoneyMarketStorage object
+  * @return vector<String>
+  */
+  public fun get_all_markets_keys(money_market_storage: &MoneyMarketStorage): &vector<String> {
+    &money_market_storage.all_markets_keys
+  }
+
+  /**
   * @notice It unpacks the data on a struct Account for a Market T
   * @param money_market_storage The shared MoneyMarketStorage object
   * @param user The address of the account we want to check
   * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
   */
   public fun get_account_info<T>(money_market_storage: &MoneyMarketStorage, user: address): (u64, u64, u256, u256) {
-    let account = borrow_account(&money_market_storage.accounts_table, user, get_type_name_string<T>());
+    get_account_info_by_key(money_market_storage, user, get_type_name_string<T>())
+  }
+
+  /**
+  * @notice It unpacks the data on a struct Account for a Market
+  * @param money_market_storage The shared MoneyMarketStorage object
+  * @param user The address of the account we want to check
+  * @param key The Market key
+  * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
+  */
+  public fun get_account_info_by_key(money_market_storage: &MoneyMarketStorage, user: address, key: String): (u64, u64, u256, u256) {
+    let account = borrow_account(&money_market_storage.accounts_table, user, key);
     (account.shares, account.principal, account.collateral_rewards_paid, account.loan_rewards_paid)
   }
 
@@ -2550,7 +2607,34 @@ module money_market::ipx_money_market_core {
     u64,
     bool
   ) {
-    let market_data = borrow_market_data(&money_market_storage.market_data_table, get_type_name_string<T>());
+    get_market_info_by_key(money_market_storage, get_type_name_string<T>())
+  }
+
+  /**
+  * @notice It unpacks a Market struct
+  * @param money_market_storage The shared MoneyMarketStorage object
+  * @param key The Market key
+  * @return (u64, u64, u64, u64, u64, bool, u256, u256, u256, u256, u256, u64, u64, u64, u64) (total_reserves, accrued_epoch, borrow_cap, collateral_cap, balance_value, is_paused, LTV, reserve_factor, allocation_points, accrued_collateral_rewards_per_share, accrued_loan_rewards_per_share, total_shares, total_collateral, total_principal, total_borrows)
+  */
+  public fun get_market_info_by_key(money_market_storage: &MoneyMarketStorage, key: String): (
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+    bool,
+    u256,
+    u256,
+    u256,
+    u256,
+    u256,
+    u64,
+    u64,
+    u64,
+    u64,
+    bool
+  ) {
+    let market_data = borrow_market_data(&money_market_storage.market_data_table, key);
     (
       market_data.total_reserves,
       market_data.accrued_timestamp,
@@ -2692,7 +2776,7 @@ module money_market::ipx_money_market_core {
   * @param user The address of the account
   * @return Coin<IPX> It will mint IPX rewards to the user.
   */
-  fun get_pending_rewards_internal(
+  public fun get_pending_rewards_by_key(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
     clock_object: &Clock,

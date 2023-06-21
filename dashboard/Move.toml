@@ -1,13 +1,14 @@
 [package]
-name = "Library"
+name = "Dashboard"
 version = "0.0.1"
-published-at = "0xd6e081a1ac7cfffba41910a07ce8fed01e506ad7ff77069986db567670ae2bad"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet" }
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet"  }
+MoneyMarket = { local = "../money-market" }
 
 [addresses]
-library =  "0xd6e081a1ac7cfffba41910a07ce8fed01e506ad7ff77069986db567670ae2bad"
+dashboard = "0x0"
+money_market = "0xd6e081a1ac7cfffba41910a07ce8fed01e506ad7ff77069986db567670ae2bad"
 std = "0x1"
 sui =  "0x2"
