@@ -4,17 +4,14 @@
 version = 0
 
 dependencies = [
-  { name = "IPX" },
-  { name = "Library" },
+  { name = "MoneyMarket" },
   { name = "MoveStdlib" },
-  { name = "Oracle" },
   { name = "Sui" },
-  { name = "SuiDollar" },
 ]
 
 [[move.package]]
 name = "IPX"
-source = { local = "dependencies/ipx" }
+source = { local = "../money-market/dependencies/ipx" }
 
 dependencies = [
   { name = "Library" },
@@ -29,6 +26,19 @@ source = { local = "../library" }
 dependencies = [
   { name = "MoveStdlib" },
   { name = "Sui" },
+]
+
+[[move.package]]
+name = "MoneyMarket"
+source = { local = "../money-market" }
+
+dependencies = [
+  { name = "IPX" },
+  { name = "Library" },
+  { name = "MoveStdlib" },
+  { name = "Oracle" },
+  { name = "Sui" },
+  { name = "SuiDollar" },
 ]
 
 [[move.package]]

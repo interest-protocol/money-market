@@ -1,6 +1,7 @@
 [package]
 name = "IPX"
 version = "0.0.1"
+published-at = "0xd85ff9aaebfb24f6cd8b5e89afcda7ad317f07ed6f8a322d72dca22c8c8c47a4"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet" }
@@ -10,5 +11,5 @@ Library = { local = "../../../library" }
 [addresses]
 std = "0x1"
 sui =  "0x2"
-ipx =  "0x0"
+ipx =  "0xd85ff9aaebfb24f6cd8b5e89afcda7ad317f07ed6f8a322d72dca22c8c8c47a4"
 admin = "3f2bbe286241f23ceba46d2a62a8c2ca6a75bb51c7d4991e6c568f6cee0cf910"

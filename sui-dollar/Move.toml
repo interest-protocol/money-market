@@ -1,6 +1,7 @@
 [package]
 name = "SuiDollar"
 version = "0.0.1"
+published-at = "0x02871464ed71b80969b32f2b23c981b085866485ba5368c0f59588fcc0dbce47"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet" }
@@ -8,6 +9,6 @@ Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-fram
 Library = { local = "../library" }
 
 [addresses]
-sui_dollar =  "0x0"
+sui_dollar =  "0x02871464ed71b80969b32f2b23c981b085866485ba5368c0f59588fcc0dbce47"
 std = "0x1"
 sui =  "0x2"

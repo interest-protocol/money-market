@@ -1,6 +1,7 @@
 [package]
 name = "Oracle"
 version = "0.0.1"
+published-at = "0xbd5fc6e8494555f8f01e8b75e920532b560b7a71eabd439aa2d0dbeae7b81653"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
@@ -26,7 +27,7 @@ local = "./dependencies/pyth"
 local = "./dependencies/wormhole"
 
 [addresses]
-oracle = "0x0"
+oracle = "0xbd5fc6e8494555f8f01e8b75e920532b560b7a71eabd439aa2d0dbeae7b81653"
 std = "0x1"
 sui =  "0x2"
 switchboard_std = "0x98670585b87e06628ef2d7f7cb1e7bee8ada65b43b82997935225a7e6e21d18e"

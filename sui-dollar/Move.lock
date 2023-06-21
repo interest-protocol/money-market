@@ -5,14 +5,16 @@ version = 0
 
 dependencies = [
   { name = "Library" },
+  { name = "MoveStdlib" },
   { name = "Sui" },
 ]
 
 [[move.package]]
 name = "Library"
-source = { git = "https://github.com/interest-protocol/sui-defi", rev = "main", subdir = "library" }
+source = { local = "../library" }
 
 dependencies = [
+  { name = "MoveStdlib" },
   { name = "Sui" },
 ]
 
