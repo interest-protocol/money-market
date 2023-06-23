@@ -1,13 +1,13 @@
 [package]
 name = "Library"
 version = "0.0.1"
-published-at = "0xd6e081a1ac7cfffba41910a07ce8fed01e506ad7ff77069986db567670ae2bad"
+published-at = "0x4c24b307b94457f1a66bae100ef3bfd38c2cbf44ba1a2124337dd828916c5135"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet" }
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet"  }
 
 [addresses]
-library =  "0xd6e081a1ac7cfffba41910a07ce8fed01e506ad7ff77069986db567670ae2bad"
+library =  "0x4c24b307b94457f1a66bae100ef3bfd38c2cbf44ba1a2124337dd828916c5135"
 std = "0x1"
 sui =  "0x2"

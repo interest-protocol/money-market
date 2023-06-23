@@ -1,5 +1,6 @@
 module dashboard::dashboard {
-
+  
+  use std::ascii::{String};
   use std::vector;
 
   use sui::clock::{Clock};
@@ -31,7 +32,8 @@ module dashboard::dashboard {
     let result = vector::empty<Market>();
 
     let all_market_keys = *ipx_money_market_core::get_all_markets_keys(storage);
-    let user_markets_in = *ipx_money_market_core::get_user_markets_in(storage, user);
+    let user_markets_in = if (ipx_money_market_core::account_markets_in_exists(storage, user)) 
+      { *ipx_money_market_core::get_user_markets_in(storage, user) } else { vector::empty<String>() };
     let index = 0;
     let length = vector::length(&all_market_keys);
 
@@ -39,10 +41,20 @@ module dashboard::dashboard {
 
       let key = *vector::borrow(&all_market_keys, index);
 
-      let (user_shares, user_principal, _, _) = ipx_money_market_core::get_account_info_by_key(storage, user, key);
+      let no_user = !ipx_money_market_core::account_exists(storage, user, key);
+
+      let (user_shares, user_principal, _, _) = if (no_user) {
+        (0, 0, 0, 0)
+      } else {
+        ipx_money_market_core::get_account_info_by_key(storage, user, key)
+      };
 
       let (user_collateral_pending_rewards, user_loan_pending_rewards) 
-        = ipx_money_market_core::get_pending_rewards_by_key(storage, interest_rate_model_storage, clock_object, key, user);
+        = if (no_user) {
+          (0, 0)
+        } else {
+          ipx_money_market_core::get_pending_rewards_by_key(storage, interest_rate_model_storage, clock_object, key, user)
+        };
 
       let (_, accrued_timestamp, borrow_cap, collateral_cap, cash, _, ltv, _, allocation_points, _, _, total_collateral_base, total_collateral_elastic, total_loan_base, total_loan_elastic, _) = ipx_money_market_core::get_market_info_by_key(storage, key);
 

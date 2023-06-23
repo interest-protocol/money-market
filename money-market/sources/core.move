@@ -1118,7 +1118,7 @@ module money_market::ipx_money_market_core {
   /****************************************
     STORAGE GETTERS
   **********************************************/ 
-  public fun borrow_market_balance<T>(market_balance: &Bag, market_key: String): &MarketBalance<T> {
+  fun borrow_market_balance<T>(market_balance: &Bag, market_key: String): &MarketBalance<T> {
     bag::borrow(market_balance, market_key)
   }
 
@@ -1126,7 +1126,7 @@ module money_market::ipx_money_market_core {
     bag::borrow_mut(market_balance, market_key)
   }
 
-  public fun borrow_market_data(market_data: &ObjectTable<String, Market>, market_key: String): &Market {
+  fun borrow_market_data(market_data: &ObjectTable<String, Market>, market_key: String): &Market {
     object_table::borrow(market_data, market_key)
   }
 
@@ -1134,7 +1134,7 @@ module money_market::ipx_money_market_core {
     object_table::borrow_mut(market_data, market_key)
   }
 
-  public fun borrow_account(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): &Account {
+  fun borrow_account(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): &Account {
     object_table::borrow(object_table::borrow(accounts_table, market_key), user)
   }
 
@@ -1142,7 +1142,7 @@ module money_market::ipx_money_market_core {
     object_table::borrow_mut(object_table::borrow_mut(accounts_table, market_key), user)
   }
 
-  public fun borrow_user_markets_in(markets_in: &Table<address, vector<String>>, user: address): &vector<String> {
+  fun borrow_user_markets_in(markets_in: &Table<address, vector<String>>, user: address): &vector<String> {
     table::borrow(markets_in, user)
   }
 
@@ -1150,8 +1150,16 @@ module money_market::ipx_money_market_core {
     table::borrow_mut(markets_in, user)
   }
 
-  public fun account_exists(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): bool {
+  fun account_exists_internal(accounts_table: &ObjectTable<String, ObjectTable<address, Account>>, user: address, market_key: String): bool {
     object_table::contains(object_table::borrow(accounts_table, market_key), user)
+  }
+
+  public fun account_markets_in_exists(storage: &MoneyMarketStorage, user: address): bool {
+    table::contains(&storage.markets_in_table, user)
+  }
+
+  public fun account_exists(storage: &MoneyMarketStorage, user: address, market_key: String): bool {
+    account_exists_internal(&storage.accounts_table, user, market_key)
   }
 
  /**
@@ -1160,7 +1168,7 @@ module money_market::ipx_money_market_core {
   * @param user The address of the user we wish to initiate his account
   */
   fun init_account(accounts_table: &mut ObjectTable<String, ObjectTable<address, Account>>, user: address, key: String, ctx: &mut TxContext) {
-    if (!account_exists(accounts_table, user, key)) {
+    if (!account_exists_internal(accounts_table, user, key)) {
           object_table::add(
             object_table::borrow_mut(accounts_table, key),
             user,
@@ -2235,8 +2243,8 @@ module money_market::ipx_money_market_core {
     );
 
     // Accounts must exist or there is no point o proceed.
-    assert!(account_exists(&money_market_storage.accounts_table, borrower, collateral_market_key), ERROR_ACCOUNT_COLLATERAL_DOES_EXIST);
-    assert!(account_exists(&money_market_storage.accounts_table, borrower, loan_market_key), ERROR_ACCOUNT_LOAN_DOES_EXIST);
+    assert!(account_exists_internal(&money_market_storage.accounts_table, borrower, collateral_market_key), ERROR_ACCOUNT_COLLATERAL_DOES_EXIST);
+    assert!(account_exists_internal(&money_market_storage.accounts_table, borrower, loan_market_key), ERROR_ACCOUNT_LOAN_DOES_EXIST);
 
     // If the liquidator does not have an account in the collateral market, we make one. 
     // So he can accept the collateral
@@ -2430,8 +2438,8 @@ module money_market::ipx_money_market_core {
     );
 
     // Accounts must exist or there is no point o proceed.
-    assert!(account_exists(&money_market_storage.accounts_table, borrower, collateral_market_key), ERROR_ACCOUNT_COLLATERAL_DOES_EXIST);
-    assert!(account_exists(&money_market_storage.accounts_table, borrower, suid_market_key), ERROR_ACCOUNT_LOAN_DOES_EXIST);
+    assert!(account_exists_internal(&money_market_storage.accounts_table, borrower, collateral_market_key), ERROR_ACCOUNT_COLLATERAL_DOES_EXIST);
+    assert!(account_exists_internal(&money_market_storage.accounts_table, borrower, suid_market_key), ERROR_ACCOUNT_LOAN_DOES_EXIST);
 
     // If the liquidator does not have an account in the collateral market, we make one. 
     // So he can accept the collateral
