@@ -233,7 +233,7 @@ module money_market::ipx_money_market_core {
   }
 
   struct GetRewards<phantom T> has copy, drop {
-    rewards: u256,
+    rewards: u64,
     sender: address
   }
 
@@ -242,7 +242,7 @@ module money_market::ipx_money_market_core {
   }
 
   struct GetAllRewards has copy, drop {
-    rewards: u256,
+    rewards: u64,
     sender: address
   }
 
@@ -1257,7 +1257,6 @@ module money_market::ipx_money_market_core {
   * @param multiplier_rate_per_year The rate applied as the liquidity decreases
   * @param jump_multiplier_rate_per_year An amplified rate once the kink is passed to address low liquidity levels
   * @kink The threshold that decides when the liquidity is considered very low
-  * @return (Coin<T>, Coin<IPX>)
   * Requirements: 
   * - Only the admin can call this function
   */
@@ -2024,15 +2023,14 @@ module money_market::ipx_money_market_core {
     ctx: &mut TxContext 
   ): Coin<IPX> {
 
-    // Call the view functions to get the values
-    let (collateral_rewards, loan_rewards) = get_pending_rewards<T>(
+    // It updates the account
+    let rewards = calculate_rewards(
       money_market_storage, 
       interest_rate_model_storage, 
       clock_object,
+      get_type_name_string<T>(),
       sender
      ); 
-
-    let rewards = collateral_rewards + loan_rewards;
 
     emit(
       GetRewards<T> {
@@ -2042,7 +2040,7 @@ module money_market::ipx_money_market_core {
     );
 
     // Mint the IPX
-    mint_ipx(money_market_storage, ipx_storage, (rewards as u64), ctx)
+    mint_ipx(money_market_storage, ipx_storage, rewards, ctx)
   }
 
   /**
@@ -2073,8 +2071,8 @@ module money_market::ipx_money_market_core {
     while(index < num_of_markets) {
       let key = *vector::borrow(&all_market_keys, index);
 
-      let (collateral_rewards, loan_rewards) = get_pending_rewards_by_key(
-        money_market_storage,
+      let rewards = calculate_rewards(
+        money_market_storage, 
         interest_rate_model_storage, 
         clock_object,
         key,
@@ -2082,7 +2080,7 @@ module money_market::ipx_money_market_core {
       );  
 
       // Add the rewards
-      all_rewards = all_rewards + collateral_rewards + loan_rewards;
+      all_rewards = all_rewards + rewards;
       // Inc index
       index = index + 1;
     };
@@ -2106,7 +2104,7 @@ module money_market::ipx_money_market_core {
   * @param ipx_storage The shared object of the module ipx::ipx 
   * @param clock_object The shared Clock object
   * @param user The address of the account
-  * @return Coin<IPX> It will mint IPX rewards to the user.
+  * @return (u256 collateral rewards, u256 loan rewards).
   */
   public fun get_pending_rewards<T>(
     money_market_storage: &mut MoneyMarketStorage, 
@@ -2802,7 +2800,7 @@ module money_market::ipx_money_market_core {
   * @param clock_object The shared Clock object
   * @param market_key The key of the market
   * @param user The address of the account
-  * @return Coin<IPX> It will mint IPX rewards to the user.
+  * @return (u256 collateral rewards, u256 loan rewards)
   */
   public fun get_pending_rewards_by_key(
     money_market_storage: &mut MoneyMarketStorage, 
@@ -2864,6 +2862,81 @@ module money_market::ipx_money_market_core {
           account.loan_rewards_paid;
 
       (pending_collateral_rewards, pending_loan_rewards)      
+  }
+
+  /**
+  * @notice This function returns the amount of rewards to mint and considers all rewards paid
+  * @param money_market_storage The shared MoneyMarketStorage object
+  * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
+  * @param clock_object The shared Clock object
+  * @param market_key The key of the market
+  * @param user The address of the account
+  * @return The amount of rewards to mint
+  */
+  fun calculate_rewards(
+    money_market_storage: &mut MoneyMarketStorage, 
+    interest_rate_model_storage: &InterestRateModelStorage,
+    clock_object: &Clock,
+    market_key: String,
+    user: address
+  ): u64 {
+        // Reward information in memory
+    let suid_interest_rate_per_ms = money_market_storage.suid_interest_rate_per_ms;
+    let ipx_per_ms = money_market_storage.ipx_per_ms;
+    let total_allocation_points = money_market_storage.total_allocation_points;
+      
+    // Get market core information
+    let market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, market_key);
+
+    if (market_key == get_type_name_string<SUID>()) {
+      accrue_internal_suid(
+        market_data, 
+        clock_object,
+        suid_interest_rate_per_ms,
+        ipx_per_ms,
+        total_allocation_points,
+      );
+    } else {
+      // Update the market rewards & loans before any mutations
+      accrue_internal(
+        market_data, 
+        interest_rate_model_storage, 
+        clock_object,
+        market_key, 
+        ipx_per_ms,
+        total_allocation_points,
+        );
+    };
+
+      // Get the caller Account to update
+      let account = borrow_mut_account(&mut money_market_storage.accounts_table, user, market_key);
+
+      let rewards = ((account.collateral_rewards + account.loan_rewards) as u256);
+
+      // If the sender has shares already, we need to calculate his rewards before this deposit.
+      if (account.shares != 0) 
+        // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
+        rewards = rewards + (account.collateral_rewards as u256) + (
+          (account.shares as u256) * 
+          market_data.accrued_collateral_rewards_per_share / 
+          (market_data.decimals_factor as u256)) - 
+          account.collateral_rewards_paid;
+
+       // If the user has a loan in this market, he is entitled to rewards
+       if(account.principal != 0) 
+        rewards = rewards + (account.loan_rewards as u256) + (
+          (account.principal as u256) * 
+          market_data.accrued_loan_rewards_per_share / 
+          (market_data.decimals_factor as u256)) - 
+          account.loan_rewards_paid;
+
+      // Rewards paid
+      account.collateral_rewards = 0;
+      account.loan_rewards = 0;
+      account.collateral_rewards_paid = (account.shares as u256) * market_data.accrued_collateral_rewards_per_share / (market_data.decimals_factor as u256);    
+      account.loan_rewards_paid = (account.principal as u256) * market_data.accrued_loan_rewards_per_share / (market_data.decimals_factor as u256);
+
+      (rewards as u64)    
   }
 
   /**
