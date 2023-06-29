@@ -199,7 +199,7 @@ module money_market::ipx_money_market_test_2 {
       let new_principal = prev_loan + added_principal;
 
       assert_eq(burn(coin_suid), borrow_value);  
-      assert_eq(((prev_loan_rewards + loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid); 
+      assert_eq(((loan_rewards - prev_loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid); 
       assert_eq(collateral, 0);
       assert_eq(loan, new_principal);
       assert_eq(collateral_rewards_paid, 0);
@@ -331,7 +331,7 @@ module money_market::ipx_money_market_test_2 {
       let loan_rewards_per_share = calculate_suid_market_rewards((timestame_increase as u256), 5000 * SUID_DECIMALS_FACTOR) + prev_loan_rewards_per_share;
       let (_, loan, _, loan_rewards, _, loan_rewards_paid) = money_market::get_account_info<SUID>(&money_market_storage, alice);
 
-      assert_eq(((prev_loan_rewards + loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid);
+      assert_eq(((loan_rewards - prev_loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid);
       assert_eq(loan, 0);
       assert_eq(loan_rewards_paid, 0);
 
@@ -541,6 +541,8 @@ module money_market::ipx_money_market_test_2 {
       vector::push_back(&mut price_potato_vector, btc_price);
       vector::push_back(&mut price_potato_vector, eth_price);
 
+      let (before_liquidation_alice_btc_collateral, _, _, _, _, _) = money_market::get_account_info<BTC>(&money_market_storage, alice);
+
       burn(money_market::liquidate<BTC, ETH>(
         &mut money_market_storage,
         &interest_rate_model_storage,
@@ -582,8 +584,8 @@ module money_market::ipx_money_market_test_2 {
       let loan_in_btc = loan_in_btc + loan_penalty;
 
 
-      assert_eq(collateral_rewards > 0, true);
-      assert_eq(loan_rewards > 0, true);
+      assert_eq((collateral_rewards as u256), ((before_liquidation_alice_btc_collateral as u256) * btc_accrued_collateral_rewards_per_share) / BTC_DECIMALS_FACTOR);
+      assert_eq(loan_rewards, 0);
       assert_eq((collateral as u256), 10 * BTC_DECIMALS_FACTOR - loan_in_btc);
       assert_eq(loan, 0);
       assert_eq(collateral_rewards_paid, ((collateral as u256) * btc_accrued_collateral_rewards_per_share) / BTC_DECIMALS_FACTOR);

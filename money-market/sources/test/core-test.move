@@ -805,7 +805,7 @@ module money_market::ipx_money_market_test {
       let loan_rewards_per_share = calculate_eth_market_rewards(350000, 25 * ETH_DECIMALS_FACTOR) + prev_loan_rewards_per_share;
       let (_, loan, _, loan_rewards, _, loan_rewards_paid) = money_market::get_account_info<ETH>(&money_market_storage, alice);
 
-      assert_eq(((prev_loan_rewards + loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / ETH_DECIMALS_FACTOR) - prev_loan_rewards_paid);
+      assert_eq(((loan_rewards - prev_loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / ETH_DECIMALS_FACTOR) - prev_loan_rewards_paid);
       assert_eq(loan, 0);
       assert_eq(loan_rewards_paid, 0);
 
@@ -3097,7 +3097,7 @@ module money_market::ipx_money_market_test {
       let new_principal = prev_loan + added_principal;
 
       assert_eq(burn(coin_eth), borrow_value);  
-      assert_eq(((prev_loan_rewards + loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid); 
+      assert_eq(((loan_rewards - prev_loan_rewards) as u256), (loan_rewards_per_share * (prev_loan as u256) / SUID_DECIMALS_FACTOR) - prev_loan_rewards_paid); 
       assert_eq(collateral, 0);
       assert_eq(loan, new_principal);
       assert_eq(collateral_rewards_paid, 0);

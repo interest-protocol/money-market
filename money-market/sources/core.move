@@ -2351,7 +2351,7 @@ module money_market::ipx_money_market_core {
     // Consider all rewards earned by the sender paid
     borrower_collateral_account.collateral_rewards_paid = (borrower_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
 
-    borrower_collateral_account.collateral_rewards = borrower_collateral_account.loan_rewards + (collateral_pending_rewards as u64);
+    borrower_collateral_account.collateral_rewards = borrower_collateral_account.collateral_rewards + (collateral_pending_rewards as u64);
 
     // Give the shares to the liquidator
     let liquidator_collateral_account = borrow_mut_account(&mut money_market_storage.accounts_table, liquidator_address, collateral_market_key);
