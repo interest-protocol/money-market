@@ -31,21 +31,19 @@ module money_market::ipx_money_market_interface {
   public fun deposit<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
     asset: Coin<T>,
     ctx: &mut TxContext
-  ): Coin<IPX> {
+  ) {
       
     money_market::deposit<T>(
       money_market_storage,
       interest_rate_model_storage, 
-      ipx_storage,
       clock_object,
       asset,
       tx_context::sender(ctx),
       ctx
-    )
+    );
   } 
 
   public fun withdraw<T>(
@@ -124,7 +122,7 @@ module money_market::ipx_money_market_interface {
     clock_object: &Clock,
     ctx: &mut TxContext
   ) {
-    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, tx_context::sender(ctx));
+    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, tx_context::sender(ctx), ctx);
   }
 
   public fun borrow_suid(

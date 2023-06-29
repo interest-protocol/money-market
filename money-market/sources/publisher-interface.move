@@ -128,9 +128,10 @@ module money_market::ipx_money_market_publisher_interface {
     interest_rate_model_storage: &InterestRateModelStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
-    publisher: &Publisher
+    publisher: &Publisher,
+    ctx: &mut TxContext
   ) {
-    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, id_address(publisher));
+    money_market::exit_market<T>(money_market_storage, interest_rate_model_storage, price_potatoes, clock_object, id_address(publisher), ctx);
   }
 
   public fun borrow_suid(

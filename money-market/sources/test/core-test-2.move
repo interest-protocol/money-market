@@ -3,10 +3,9 @@ module money_market::ipx_money_market_test_2 {
 
   use std::vector;
 
-  use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
+  use sui::test_scenario::{Self as test, next_tx, ctx};
   use sui::test_utils::{assert_eq};
   use sui::coin::{Self, burn_for_testing as burn};
-  use sui::math;
   use sui::clock;
 
   use money_market::ipx_money_market_core::{Self as money_market, MoneyMarketAdminCap, MoneyMarketStorage};
@@ -23,7 +22,7 @@ module money_market::ipx_money_market_test_2 {
   use library::eth::{ETH};
   use library::btc::{BTC};
 
-  use money_market::ipx_money_market_test::{init_test, calculate_btc_market_rewards, calculate_suid_market_rewards, get_all_prices_potatoes};
+  use money_market::ipx_money_market_test::{init_test, calculate_suid_market_rewards, get_all_prices_potatoes};
 
   const INITIAL_BTC_PRICE: u256 = 20000000000000000000000; // 20k - 18 decimals
   const INITIAL_ETH_PRICE: u256 = 1400000000000000000000; // 1400 - 18 decimals
@@ -38,112 +37,6 @@ module money_market::ipx_money_market_test_2 {
   const SUID_DECIMALS_FACTOR: u256 = 1000000000;
   const INITIAL_RESERVE_FACTOR_MANTISSA: u64 = 200000000000000000; // 0.2e18 or 20%
   // ATTENTION This needs to be updated when the module constant is updated.
-
-  fun test_deposit_(test: &mut Scenario) {
-    init_test(test);
-
-    let (alice, bob) = people();
-    let clock_object = clock::create_for_testing(ctx(test));
-
-    next_tx(test, alice);
-    {
-      let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
-      let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
-      let ipx_storage = test::take_shared<IPXStorage>(test);
-
-      let coin_ipx = money_market::deposit<BTC>(
-        &mut money_market_storage,
-        &interest_rate_model_storage,
-        &mut ipx_storage,
-        &clock_object,
-        mint<BTC>(10, BTC_DECIMALS, ctx(test)),
-        alice,
-        ctx(test)
-      );
-
-      let (collateral, loan, collateral_rewards_paid, loan_rewards_paid) = money_market::get_account_info<BTC>(&money_market_storage, alice);
-
-      assert_eq(burn(coin_ipx), 0);
-      assert_eq(collateral, 10 * math::pow(10, BTC_DECIMALS));
-      assert_eq(loan, 0);
-      assert_eq(collateral_rewards_paid, 0);
-      assert_eq(loan_rewards_paid, 0);
-
-      test::return_shared(ipx_storage);
-      test::return_shared(interest_rate_model_storage);
-      test::return_shared(money_market_storage);
-    };
-
-    next_tx(test, alice);
-    {
-      let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
-      let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
-      let ipx_storage = test::take_shared<IPXStorage>(test);
-
-      clock::increment_for_testing(&mut clock_object, 12000);
-
-      let coin_ipx = money_market::deposit<BTC>(
-        &mut money_market_storage,
-        &interest_rate_model_storage,
-        &mut ipx_storage,
-        &clock_object,
-        mint<BTC>(5, BTC_DECIMALS, ctx(test)),
-        alice,
-        ctx(test)
-      );
-
-      let (collateral, loan, collateral_rewards_paid, loan_rewards_paid) = money_market::get_account_info<BTC>(&money_market_storage, alice);
-
-      let collateral_rewards_per_share = calculate_btc_market_rewards(12000, 10 * BTC_DECIMALS_FACTOR);
-
-      assert_eq((burn(coin_ipx) as u256), collateral_rewards_per_share * (10 * BTC_DECIMALS_FACTOR as u256) / BTC_DECIMALS_FACTOR);
-      assert_eq(collateral, 15 * math::pow(10, BTC_DECIMALS));
-      assert_eq(loan, 0);
-      assert_eq(collateral_rewards_paid, (collateral_rewards_per_share * (15 * BTC_DECIMALS_FACTOR)) / BTC_DECIMALS_FACTOR);
-      assert_eq(loan_rewards_paid, 0);
-
-      test::return_shared(ipx_storage);
-      test::return_shared(interest_rate_model_storage);
-      test::return_shared(money_market_storage);
-    };
-
-    next_tx(test, bob);
-    {
-      let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
-      let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
-      let ipx_storage = test::take_shared<IPXStorage>(test);
-
-      clock::increment_for_testing(&mut clock_object, 20000);
-
-      let (_, _, _, _, _, _, _, _, _, prev_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
-
-      let coin_ipx = money_market::deposit<BTC>(
-        &mut money_market_storage,
-        &interest_rate_model_storage,
-        &mut ipx_storage,
-        &clock_object,
-        mint<BTC>(7, BTC_DECIMALS, ctx(test)),
-        bob,
-        ctx(test)
-      );
-
-      let (collateral, loan, collateral_rewards_paid, loan_rewards_paid) = money_market::get_account_info<BTC>(&money_market_storage, bob);
-
-      let collateral_rewards_per_share = calculate_btc_market_rewards(20000, 15 * BTC_DECIMALS_FACTOR) + prev_collateral_rewards_per_share;
-
-      assert_eq((burn(coin_ipx) as u256), 0);
-      assert_eq((collateral as u256), 7 * BTC_DECIMALS_FACTOR);
-      assert_eq(loan, 0);
-      assert_eq(collateral_rewards_paid, (collateral_rewards_per_share * (7 * BTC_DECIMALS_FACTOR)) / BTC_DECIMALS_FACTOR);
-      assert_eq(loan_rewards_paid, 0);
-
-      test::return_shared(ipx_storage);
-      test::return_shared(interest_rate_model_storage);
-      test::return_shared(money_market_storage);
-    };    
-
-    clock::destroy_for_testing(clock_object);
-  }
 
    #[test] 
    fun test_borrow_suid() {

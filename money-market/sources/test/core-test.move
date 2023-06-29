@@ -1,4 +1,5 @@
 #[test_only]
+#[allow(unused_function)]
 module money_market::ipx_money_market_test {
   use std::vector;
 
@@ -1982,7 +1983,8 @@ module money_market::ipx_money_market_test {
         &interest_rate_model_storage,
         get_all_prices_potatoes(),
         &clock_object,
-        alice
+        alice,
+        ctx(test)
       );
 
       let user_markets_in = money_market::get_user_markets_in(&mut money_market_storage, alice);
@@ -2064,6 +2066,7 @@ module money_market::ipx_money_market_test {
         get_all_prices_potatoes(),
         &clock_object,
         alice,
+        ctx(test)
       );
 
       test::return_shared(ipx_storage);
@@ -2151,7 +2154,8 @@ module money_market::ipx_money_market_test {
         &interest_rate_model_storage,
         get_all_prices_potatoes(),
         &clock_object,
-        alice
+        alice,
+        ctx(test)
       );
 
       test::return_shared(ipx_storage);
