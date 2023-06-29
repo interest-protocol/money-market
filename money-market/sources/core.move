@@ -2839,7 +2839,7 @@ module money_market::ipx_money_market_core {
     };
 
       // Get the caller Account to update
-      let account = borrow_mut_account(&mut money_market_storage.accounts_table, user, market_key);
+      let account = borrow_account(&money_market_storage.accounts_table, user, market_key);
 
       let pending_collateral_rewards = 0;
       let pending_loan_rewards = 0;
