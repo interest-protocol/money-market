@@ -15,6 +15,7 @@ module money_market::ipx_money_market_core {
   use sui::clock::{Self, Clock};
   use sui::package::{Self, Publisher};
   use sui::math;
+  use sui::transfer;
 
   use money_market::interest_rate_model::{Self, InterestRateModelStorage};
   
@@ -438,7 +439,7 @@ module money_market::ipx_money_market_core {
     shares_to_remove: u64,
     sender: address,
     ctx: &mut TxContext
-  ): (Coin<T>, Coin<IPX>) {
+  ): Coin<T> {
     assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
     
     // Get the type name of the Coin<T> of this market.
@@ -882,7 +883,7 @@ module money_market::ipx_money_market_core {
   ) {
     let market_key = get_type_name_string<T>();
 
-    // We need to register his account on the first deposit call, if it does not exist.
+    // It is possible that the user has entered the market and never deposited. 
     init_account(&mut money_market_storage.accounts_table, sender, market_key, ctx);
 
     let account = borrow_account(&money_market_storage.accounts_table, sender, market_key);
@@ -1933,7 +1934,7 @@ module money_market::ipx_money_market_core {
     principal_to_repay: u64,
     sender: address,
     ctx: &mut TxContext 
-  ): (Coin<SUID>, Coin<IPX>) {
+  ): Coin<SUID> {
   assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
   
     // Get the type name of the Coin<SUID> of this market.
@@ -2313,7 +2314,7 @@ module money_market::ipx_money_market_core {
     // Consider his loan rewards paid.
     borrower_loan_account.loan_rewards_paid = (borrower_loan_account.principal as u256) * loan_market_data.accrued_loan_rewards_per_share / (loan_market_data.decimals_factor as u256);
 
-    borrower_loan_account.loan_rewards = borrower_collateral_account.loan_rewards + (loan_pending_rewards as u64);
+    borrower_loan_account.loan_rewards = borrower_loan_account.loan_rewards + (loan_pending_rewards as u64);
 
     let loan_decimals_factor = loan_market_data.decimals_factor;
 
@@ -2355,10 +2356,18 @@ module money_market::ipx_money_market_core {
     // Give the shares to the liquidator
     let liquidator_collateral_account = borrow_mut_account(&mut money_market_storage.accounts_table, liquidator_address, collateral_market_key);
 
+    let liquidator_pending_rewards = ((liquidator_collateral_account.shares as u256) * 
+          collateral_market_data.accrued_collateral_rewards_per_share / 
+          (collateral_market_data.decimals_factor as u256)) - 
+          liquidator_collateral_account.collateral_rewards_paid;
+
     liquidator_collateral_account.shares = liquidator_collateral_account.shares + rebase::to_base(&collateral_market_data.collateral_rebase, (liquidator_amount as u64), false);
     
     // Consider the liquidator rewards paid
     liquidator_collateral_account.collateral_rewards_paid = (liquidator_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
+
+    // Update liquidator rewards
+    liquidator_collateral_account.collateral_rewards = liquidator_collateral_account.collateral_rewards + (liquidator_pending_rewards as u64);
 
     // Give reserves to the protocol
     let collateral_market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, collateral_market_key);
@@ -2544,10 +2553,17 @@ module money_market::ipx_money_market_core {
     // Give the shares to the liquidator
     let liquidator_collateral_account = borrow_mut_account(&mut money_market_storage.accounts_table, liquidator_address, collateral_market_key);
 
+    let liquidator_pending_rewards = ((liquidator_collateral_account.shares as u256) * 
+          collateral_market_data.accrued_collateral_rewards_per_share / 
+          (collateral_market_data.decimals_factor as u256)) - 
+          liquidator_collateral_account.collateral_rewards_paid;
+
     liquidator_collateral_account.shares = liquidator_collateral_account.shares + rebase::to_base(&collateral_market_data.collateral_rebase, (liquidator_amount as u64), false);
 
     // Consider the liquidator rewards paid
     liquidator_collateral_account.collateral_rewards_paid = (liquidator_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
+
+    liquidator_collateral_account.collateral_rewards = liquidator_collateral_account.collateral_rewards + (liquidator_pending_rewards as u64);
 
     // Give reserves to the protocol
     let collateral_market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, collateral_market_key);
@@ -2580,7 +2596,7 @@ module money_market::ipx_money_market_core {
   * @param user The address of the account we want to check
   * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
   */
-  public fun get_account_info<T>(money_market_storage: &MoneyMarketStorage, user: address): (u64, u64, u256, u256) {
+  public fun get_account_info<T>(money_market_storage: &MoneyMarketStorage, user: address): (u64, u64, u64, u64, u256, u256) {
     get_account_info_by_key(money_market_storage, user, get_type_name_string<T>())
   }
 
@@ -2591,9 +2607,9 @@ module money_market::ipx_money_market_core {
   * @param key The Market key
   * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
   */
-  public fun get_account_info_by_key(money_market_storage: &MoneyMarketStorage, user: address, key: String): (u64, u64, u256, u256) {
+  public fun get_account_info_by_key(money_market_storage: &MoneyMarketStorage, user: address, key: String): (u64, u64, u64, u64, u256, u256) {
     let account = borrow_account(&money_market_storage.accounts_table, user, key);
-    (account.shares, account.principal, account.collateral_rewards_paid, account.loan_rewards_paid)
+    (account.shares, account.principal, account.collateral_rewards, account.loan_rewards, account.collateral_rewards_paid, account.loan_rewards_paid)
   }
 
   /**
