@@ -43,8 +43,8 @@ module dashboard::dashboard {
 
       let no_user = !ipx_money_market_core::account_exists(storage, user, key);
 
-      let (user_shares, user_principal, _, _) = if (no_user) {
-        (0, 0, 0, 0)
+      let (user_shares, user_principal, _, _, _, _) = if (no_user) {
+        (0, 0, 0, 0, 0, 0)
       } else {
         ipx_money_market_core::get_account_info_by_key(storage, user, key)
       };

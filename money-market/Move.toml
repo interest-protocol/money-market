@@ -6,13 +6,13 @@ published-at = "0x4c24b307b94457f1a66bae100ef3bfd38c2cbf44ba1a2124337dd828916c51
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/packages/sui-framework"
-rev = "testnet-v1.3.1"
+rev = "testnet-v1.4.1"
 override = true
 
 [dependencies.MoveStdlib]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/packages/move-stdlib"
-rev = "testnet-v1.3.1"
+rev = "testnet-v1.4.1"
 override = true
 
 [dependencies]

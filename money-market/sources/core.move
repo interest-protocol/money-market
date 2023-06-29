@@ -124,6 +124,8 @@ module money_market::ipx_money_market_core {
     id: UID,
     principal: u64,
     shares: u64,
+    collateral_rewards: u64,
+    loan_rewards: u64,
     collateral_rewards_paid: u256,
     loan_rewards_paid: u256
   }
@@ -330,11 +332,9 @@ module money_market::ipx_money_market_core {
   * @notice It allows a user to deposit Coin<T> in a market as collateral. Other users can borrow this coin. Users can use this deposit as collateral to borrow coins from other markets. 
   * @param money_market_storage The shared storage object of this module 
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param clock_object The shard Clock object @0x6
   * @param asset The Coin<T> the user is depositing
   * @param sender The account, which the asset will be assigned to
-  * @return Coin<IPX> It will mint IPX rewards to the user.
   * Requirements: 
   * - The market is not paused
   * - The collateral cap has not been reached
@@ -342,12 +342,11 @@ module money_market::ipx_money_market_core {
   public(friend) fun deposit<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
     asset: Coin<T>,
     sender: address,
     ctx: &mut TxContext
-  ): Coin<IPX> {
+  ) {
       assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
       // Get the type name of the Coin<T> of this market.
       let market_key = get_type_name_string<T>();
@@ -403,6 +402,9 @@ module money_market::ipx_money_market_core {
       // Consider all rewards earned by the sender paid
       account.collateral_rewards_paid = ((account.shares as u256) * market_data.accrued_collateral_rewards_per_share) / (market_data.decimals_factor as u256);
 
+      // Update the rewards
+      account.collateral_rewards = account.collateral_rewards + (pending_rewards as u64);
+
       // Defense hook after all mutations
       deposit_allowed(market_data);
 
@@ -414,21 +416,17 @@ module money_market::ipx_money_market_core {
           sender
         }
       );
-
-      // Mint Coin<IPX> to the user.
-      mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx)
   }  
 
   /**
   * @notice It allows a user to withdraw his shares of Coin<T>.  
   * @param money_market_storage The shared storage of this module
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param price_potatoes A vector of PricePotato potatoes from the Oracle
   * @param clock_object The shared Clock object
   * @param shares_to_remove The number of shares the user wishes to remove
   * @param sender The account, which the asset will be assigned to
-  * @return (Coin<T>, Coin<IPX>)
+  * @return Coin<T>
   * Requirements: 
   * - Market is not paused 
   * - User is solvent after withdrawing Coin<T> collateral
@@ -436,13 +434,12 @@ module money_market::ipx_money_market_core {
   public(friend) fun withdraw<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage, 
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     shares_to_remove: u64,
     sender: address,
     ctx: &mut TxContext
-  ): (Coin<T>, Coin<IPX>) {
+  ): Coin<T> {
     assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
     
     // Get the type name of the Coin<T> of this market.
@@ -490,6 +487,9 @@ module money_market::ipx_money_market_core {
     // Consider all rewards earned by the sender paid
     account.collateral_rewards_paid = (account.shares as u256) * market_data.accrued_collateral_rewards_per_share / (market_data.decimals_factor as u256);
 
+    // Update the rewards
+    account.collateral_rewards = account.collateral_rewards + (pending_rewards as u64);
+
     // Remove Coin<T> from the market
     let underlying_coin = coin::take(&mut market_balance.balance, underlying_to_redeem, ctx);
 
@@ -515,20 +515,19 @@ module money_market::ipx_money_market_core {
     );
 
 
-    // Return Coin<T> and Coin<IPX> to the sender
-    (underlying_coin, mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx))
+    // Return Coin<T>
+    underlying_coin
   }
 
   /**
   * @notice It allows a user to borrow Coin<T>.  
   * @param money_market_storage The shared storage of this module 
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param price_potatoes A Vector of price potatoes from the Oracle
   * @param clock_object The shared Clock object
   * @param borrow_value The value of Coin<T> the user wishes to borrow
   * @param sender The account, which the asset will be assigned to
-  * @return (Coin<T>, Coin<IPX>)
+  * @return Coin<T>
   * Requirements: 
   * - Market is not paused 
   * - User is solvent after borrowing Coin<T> collateral
@@ -537,13 +536,12 @@ module money_market::ipx_money_market_core {
   public(friend) fun borrow<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage, 
     price_potatoes: vector<PricePotato> ,
     clock_object: &Clock,
     borrow_value: u64,
     sender: address,
     ctx: &mut TxContext
-  ): (Coin<T>, Coin<IPX>) {
+  ): Coin<T> {
     assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
     
     // Get the type name of the Coin<T> of this market.
@@ -595,6 +593,10 @@ module money_market::ipx_money_market_core {
     account.principal = account.principal + borrow_principal; 
     // Consider all rewards paid
     account.loan_rewards_paid = (account.principal as u256) * market_data.accrued_loan_rewards_per_share / (market_data.decimals_factor as u256);
+
+    // Update the rewards
+    account.loan_rewards = account.loan_rewards + (pending_rewards as u64);
+
     // Consider all rewards paid
     market_data.balance_value = market_data.balance_value - borrow_value;
 
@@ -620,32 +622,30 @@ module money_market::ipx_money_market_core {
       }
     );
 
-    (loan_coin, mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx))
+    loan_coin
   }
 
   /**
   * @notice It allows a user to repay his principal with Coin<T>.  
   * @param money_market_storage The shared storage of this module 
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param clock_object The shared Clock object
   * @param asset The Coin<T> he is repaying. 
   * @param principal_to_repay The amount of principal he wishes to repay
   * @param sender The account, which the asset will be assigned to
-  * @return (Coin<T>, Coin<IPX> )rewards
+  * @return Coin<T>
   * Requirements: 
   * - Market is not paused 
   */
   public(friend) fun repay<T>(
     money_market_storage: &mut MoneyMarketStorage, 
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage, 
     clock_object: &Clock,
     asset: Coin<T>,
     principal_to_repay: u64,
     sender: address,
     ctx: &mut TxContext
-  ): (Coin<T>, Coin<IPX>) {
+  ): Coin<T> {
     assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
     
     // Get the type name of the Coin<T> of this market.
@@ -705,6 +705,10 @@ module money_market::ipx_money_market_core {
     account.principal = account.principal - safe_asset_principal;
     // Consider all rewards paid
     account.loan_rewards_paid = (account.principal as u256) * market_data.accrued_loan_rewards_per_share / (market_data.decimals_factor as u256);
+
+    // Update the rewards
+    account.loan_rewards = account.loan_rewards + (pending_rewards as u64);
+
     repay_allowed(market_data);
 
     emit(
@@ -716,7 +720,7 @@ module money_market::ipx_money_market_core {
       }
     );
 
-    (extra_coin, mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx))
+    extra_coin
   }
   
   /**
@@ -874,9 +878,14 @@ module money_market::ipx_money_market_core {
     interest_rate_model_storage: &InterestRateModelStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
-    sender: address
+    sender: address,
+    ctx: &mut TxContext
   ) {
     let market_key = get_type_name_string<T>();
+
+    // It is possible that the user has entered the market and never deposited. 
+    init_account(&mut money_market_storage.accounts_table, sender, market_key, ctx);
+
     let account = borrow_account(&money_market_storage.accounts_table, sender, market_key);
 
     // Sender cannot exit a market if he is currently borrowing from it
@@ -1118,9 +1127,6 @@ module money_market::ipx_money_market_core {
   /****************************************
     STORAGE GETTERS
   **********************************************/ 
-  fun borrow_market_balance<T>(market_balance: &Bag, market_key: String): &MarketBalance<T> {
-    bag::borrow(market_balance, market_key)
-  }
 
   fun borrow_mut_market_balance<T>(market_balance: &mut Bag, market_key: String): &mut MarketBalance<T> {
     bag::borrow_mut(market_balance, market_key)
@@ -1176,6 +1182,8 @@ module money_market::ipx_money_market_core {
               id: object::new(ctx),
               principal: 0,
               shares: 0,
+              collateral_rewards: 0,
+              loan_rewards: 0,
               collateral_rewards_paid: 0,
               loan_rewards_paid: 0
             }
@@ -1203,9 +1211,9 @@ module money_market::ipx_money_market_core {
   * @param ipx_storage The shared object of the module ipx::ipx 
   * @param value The value for Coin<IPX> to mint
   */
-  fun mint_ipx(money_market_storage: &MoneyMarketStorage, ipx_storage: &mut IPXStorage, value: u256, ctx: &mut TxContext): Coin<IPX> {
+  fun mint_ipx(money_market_storage: &MoneyMarketStorage, ipx_storage: &mut IPXStorage, value: u64, ctx: &mut TxContext): Coin<IPX> {
     // We can create a Coin<IPX> with 0 value without minting
-    if (value == 0) { coin::zero<IPX>(ctx) } else { ipx::mint(ipx_storage, &money_market_storage.publisher, (value as u64), ctx) }
+    if (value == 0) { coin::zero<IPX>(ctx) } else { ipx::mint(ipx_storage, &money_market_storage.publisher, value, ctx) }
   }
 
   /**
@@ -1816,13 +1824,12 @@ module money_market::ipx_money_market_core {
   * @notice It allows a user to borrow Coin<SUID>.  
   * @param money_market_storage The shared storage object of this module
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param suid_storage The shared object of the module sui_dollar::suid 
   * @param price_potatoes A vector of price hot potatoes
   * @param clock_object The shared Clock object
   * @param borrow_value The value of Coin<T> the user wishes to borrow
   * @param sender The account, which the asset will be assigned to
-  * @return (Coin<SUID>, Coin<IPX>)
+  * @return Coin<SUID>
   * Requirements: 
   * - Market is not paused 
   * - User is solvent after borrowing Coin<SUID> collateral
@@ -1831,14 +1838,13 @@ module money_market::ipx_money_market_core {
   public(friend) fun borrow_suid(
     money_market_storage: &mut MoneyMarketStorage,
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage,
     suid_storage: &mut SuiDollarStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     borrow_value: u64,
     sender: address,
     ctx: &mut TxContext
-  ): (Coin<SUID>, Coin<IPX>) {
+  ): Coin<SUID> {
     assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
 
     // Get the type name of the Coin<SUID> of this market.
@@ -1883,6 +1889,9 @@ module money_market::ipx_money_market_core {
     // Consider all rewards paid
     account.loan_rewards_paid = (account.principal as u256) * market_data.accrued_loan_rewards_per_share / (market_data.decimals_factor as u256);
 
+    // Update the rewards
+    account.loan_rewards = account.loan_rewards + (pending_rewards as u64);
+
     // Check should be the last action after all mutations
     borrow_allowed(
       money_market_storage, 
@@ -1902,35 +1911,30 @@ module money_market::ipx_money_market_core {
       }
     );
 
-    (
-      suid::mint(suid_storage, &money_market_storage.publisher, borrow_value, ctx), 
-      mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx)
-    )
+    suid::mint(suid_storage, &money_market_storage.publisher, borrow_value, ctx)
   }
 
   /**
   * @notice It allows a user to repay his principal of Coin<SUID>.  
   * @param money_market_storage The shared storage object of this module
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param suid_storage The shared object of the module sui_dollar::suid 
   * @param clock_object The shared Clock object
   * @param asset The Coin<SUID> he is repaying. 
   * @param principal_to_repay The principle he wishes to repay
   * @param sender The account, which the asset will be assigned to
-  * @return (Coin<SUID> extra , Coin<IPX> rewards)
+  * @return Coin<SUID> extra
   * Requirements: 
   * - Market is not paused 
   */
   public(friend) fun repay_suid(
     money_market_storage: &mut MoneyMarketStorage, 
-    ipx_storage: &mut IPXStorage, 
     suid_storage: &mut SuiDollarStorage,
     clock_object: &Clock,
     asset: Coin<SUID>,
     principal_to_repay: u64,
     sender: address,
     ctx: &mut TxContext 
-  ): (Coin<SUID>, Coin<IPX>) {
+  ): Coin<SUID> {
   assert!(!money_market_storage.lock, ERROR_FLASH_LOAN_UNDERWAY);
   
     // Get the type name of the Coin<SUID> of this market.
@@ -1982,6 +1986,9 @@ module money_market::ipx_money_market_core {
     // Consider all rewards paid
     account.loan_rewards_paid = (account.principal as u256) * market_data.accrued_loan_rewards_per_share / (market_data.decimals_factor as u256);
 
+    // Update the rewards
+    account.loan_rewards = account.loan_rewards + (pending_rewards as u64);
+
     // Burn the SUID
     suid::burn(suid_storage, asset);
 
@@ -1996,7 +2003,7 @@ module money_market::ipx_money_market_core {
       }
     );
 
-    (extra_coin, mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx))
+    extra_coin
   }
 
   /**
@@ -2035,7 +2042,7 @@ module money_market::ipx_money_market_core {
     );
 
     // Mint the IPX
-    mint_ipx(money_market_storage, ipx_storage, rewards, ctx)
+    mint_ipx(money_market_storage, ipx_storage, (rewards as u64), ctx)
   }
 
   /**
@@ -2088,7 +2095,7 @@ module money_market::ipx_money_market_core {
     );
 
     // mint Coin<IPX>
-    mint_ipx(money_market_storage, ipx_storage, all_rewards, ctx)
+    mint_ipx(money_market_storage, ipx_storage, (all_rewards as u64), ctx)
   }
 
 
@@ -2180,7 +2187,6 @@ module money_market::ipx_money_market_core {
   * @notice It allows a user to liquidate a borrower for a reward 
   * @param money_market_storage The shared storage object of this module
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param price_potatoes A Vector of price potatoes from the Oracle
   * @param clock_object The shared Clock object at 0x6
   * @param asset The Coin<L> he is repaying. 
@@ -2192,7 +2198,6 @@ module money_market::ipx_money_market_core {
   public(friend) fun liquidate<C, L>(
     money_market_storage: &mut MoneyMarketStorage,
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
     asset: Coin<L>,
@@ -2294,7 +2299,7 @@ module money_market::ipx_money_market_core {
     let base_repay = rebase::to_base(&loan_market_data.loan_rebase, repay_max_amount, true);
 
     // We need to send the user his loan rewards before the liquidation
-    let pending_rewards =  (
+    let loan_pending_rewards =  (
         (borrower_loan_account.principal as u256) * 
         loan_market_data.accrued_loan_rewards_per_share / 
         (loan_market_data.decimals_factor as u256)) - 
@@ -2308,6 +2313,8 @@ module money_market::ipx_money_market_core {
 
     // Consider his loan rewards paid.
     borrower_loan_account.loan_rewards_paid = (borrower_loan_account.principal as u256) * loan_market_data.accrued_loan_rewards_per_share / (loan_market_data.decimals_factor as u256);
+
+    borrower_loan_account.loan_rewards = borrower_loan_account.loan_rewards + (loan_pending_rewards as u64);
 
     let loan_decimals_factor = loan_market_data.decimals_factor;
 
@@ -2333,7 +2340,7 @@ module money_market::ipx_money_market_core {
 
     // We need to add the collateral rewards to the user.
     // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
-    pending_rewards = pending_rewards + ((borrower_collateral_account.shares as u256) * 
+    let collateral_pending_rewards = ((borrower_collateral_account.shares as u256) * 
           collateral_market_data.accrued_collateral_rewards_per_share / 
           (collateral_market_data.decimals_factor as u256)) - 
           borrower_collateral_account.collateral_rewards_paid;
@@ -2344,20 +2351,27 @@ module money_market::ipx_money_market_core {
     // Consider all rewards earned by the sender paid
     borrower_collateral_account.collateral_rewards_paid = (borrower_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
 
+    borrower_collateral_account.collateral_rewards = borrower_collateral_account.collateral_rewards + (collateral_pending_rewards as u64);
+
     // Give the shares to the liquidator
     let liquidator_collateral_account = borrow_mut_account(&mut money_market_storage.accounts_table, liquidator_address, collateral_market_key);
+
+    let liquidator_pending_rewards = ((liquidator_collateral_account.shares as u256) * 
+          collateral_market_data.accrued_collateral_rewards_per_share / 
+          (collateral_market_data.decimals_factor as u256)) - 
+          liquidator_collateral_account.collateral_rewards_paid;
 
     liquidator_collateral_account.shares = liquidator_collateral_account.shares + rebase::to_base(&collateral_market_data.collateral_rebase, (liquidator_amount as u64), false);
     
     // Consider the liquidator rewards paid
     liquidator_collateral_account.collateral_rewards_paid = (liquidator_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
 
+    // Update liquidator rewards
+    liquidator_collateral_account.collateral_rewards = liquidator_collateral_account.collateral_rewards + (liquidator_pending_rewards as u64);
+
     // Give reserves to the protocol
     let collateral_market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, collateral_market_key);
     collateral_market_data.total_reserves = collateral_market_data.total_reserves + (protocol_amount as u64);
-
-    // Send the rewards to the borrower
-    transfer::public_transfer(mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx), borrower);
 
     emit(Liquidate<C, L> {
         principal_repaid,
@@ -2375,7 +2389,6 @@ module money_market::ipx_money_market_core {
   * @notice It allows a user to liquidate a borrower for a reward 
   * @param money_market_storage The shared storage object of this module
   * @param interest_rate_model_storage The shared storage object of money_market::interest_rate_model
-  * @param ipx_storage The shared object of the module ipx::ipx 
   * @param suid_storage The storage of the s_dollar
   * @param price_potatoes A Vector of price potatoes from the Oracle
   * @param clock_object The shared Clock object at 0x6
@@ -2388,7 +2401,6 @@ module money_market::ipx_money_market_core {
   public(friend) fun liquidate_suid<C>(
     money_market_storage: &mut MoneyMarketStorage,
     interest_rate_model_storage: &InterestRateModelStorage,
-    ipx_storage: &mut IPXStorage,
     suid_storage: &mut SuiDollarStorage,
     price_potatoes: vector<PricePotato>,
     clock_object: &Clock,
@@ -2489,7 +2501,7 @@ module money_market::ipx_money_market_core {
     let base_repay = rebase::to_base(&loan_market_data.loan_rebase, repay_max_amount, true);
 
     // We need to send the user his loan rewards before the liquidation
-    let pending_rewards = (
+    let loan_pending_rewards = (
         (borrower_loan_account.principal as u256) * 
         loan_market_data.accrued_loan_rewards_per_share / 
         (loan_market_data.decimals_factor as u256)) - 
@@ -2503,6 +2515,8 @@ module money_market::ipx_money_market_core {
 
     // Consider his loan rewards paid.
     borrower_loan_account.loan_rewards_paid = (borrower_loan_account.principal as u256) * loan_market_data.accrued_loan_rewards_per_share / (loan_market_data.decimals_factor as u256);
+
+    borrower_loan_account.loan_rewards = borrower_loan_account.loan_rewards + (loan_pending_rewards as u64);
 
     // Update the market loan info
     rebase::sub_base(&mut loan_market_data.loan_rebase, base_repay, false);
@@ -2523,7 +2537,7 @@ module money_market::ipx_money_market_core {
 
     // We need to add the collateral rewards to the user.
     // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
-    pending_rewards = pending_rewards + ((borrower_collateral_account.shares as u256) * 
+    let collateral_pending_rewards = ((borrower_collateral_account.shares as u256) * 
           collateral_market_data.accrued_collateral_rewards_per_share / 
           (collateral_market_data.decimals_factor as u256)) - 
           borrower_collateral_account.collateral_rewards_paid;
@@ -2534,20 +2548,26 @@ module money_market::ipx_money_market_core {
     // Consider all rewards earned by the sender paid
     borrower_collateral_account.collateral_rewards_paid = (borrower_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
 
+    borrower_collateral_account.collateral_rewards = borrower_collateral_account.collateral_rewards + (collateral_pending_rewards as u64);
+
     // Give the shares to the liquidator
     let liquidator_collateral_account = borrow_mut_account(&mut money_market_storage.accounts_table, liquidator_address, collateral_market_key);
+
+    let liquidator_pending_rewards = ((liquidator_collateral_account.shares as u256) * 
+          collateral_market_data.accrued_collateral_rewards_per_share / 
+          (collateral_market_data.decimals_factor as u256)) - 
+          liquidator_collateral_account.collateral_rewards_paid;
 
     liquidator_collateral_account.shares = liquidator_collateral_account.shares + rebase::to_base(&collateral_market_data.collateral_rebase, (liquidator_amount as u64), false);
 
     // Consider the liquidator rewards paid
     liquidator_collateral_account.collateral_rewards_paid = (liquidator_collateral_account.shares as u256) * collateral_market_data.accrued_collateral_rewards_per_share / (collateral_market_data.decimals_factor as u256);
 
+    liquidator_collateral_account.collateral_rewards = liquidator_collateral_account.collateral_rewards + (liquidator_pending_rewards as u64);
+
     // Give reserves to the protocol
     let collateral_market_data = borrow_mut_market_data(&mut money_market_storage.market_data_table, collateral_market_key);
     collateral_market_data.total_reserves = collateral_market_data.total_reserves + (protocol_amount as u64);
-
-    // Send the rewards to the borrower
-    transfer::public_transfer(mint_ipx(money_market_storage, ipx_storage, pending_rewards, ctx), borrower);
 
     emit(Liquidate<C, SUID> {
         principal_repaid,
@@ -2576,7 +2596,7 @@ module money_market::ipx_money_market_core {
   * @param user The address of the account we want to check
   * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
   */
-  public fun get_account_info<T>(money_market_storage: &MoneyMarketStorage, user: address): (u64, u64, u256, u256) {
+  public fun get_account_info<T>(money_market_storage: &MoneyMarketStorage, user: address): (u64, u64, u64, u64, u256, u256) {
     get_account_info_by_key(money_market_storage, user, get_type_name_string<T>())
   }
 
@@ -2587,9 +2607,9 @@ module money_market::ipx_money_market_core {
   * @param key The Market key
   * @return (u64, u64, u256, u256) (shares, principal, collateteral_rewards_paid, loan_rewards_paid)
   */
-  public fun get_account_info_by_key(money_market_storage: &MoneyMarketStorage, user: address, key: String): (u64, u64, u256, u256) {
+  public fun get_account_info_by_key(money_market_storage: &MoneyMarketStorage, user: address, key: String): (u64, u64, u64, u64, u256, u256) {
     let account = borrow_account(&money_market_storage.accounts_table, user, key);
-    (account.shares, account.principal, account.collateral_rewards_paid, account.loan_rewards_paid)
+    (account.shares, account.principal, account.collateral_rewards, account.loan_rewards, account.collateral_rewards_paid, account.loan_rewards_paid)
   }
 
   /**
@@ -2829,7 +2849,7 @@ module money_market::ipx_money_market_core {
       // If the sender has shares already, we need to calculate his rewards before this deposit.
       if (account.shares != 0) 
         // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
-        pending_collateral_rewards = (
+        pending_collateral_rewards = (account.collateral_rewards as u256) + (
           (account.shares as u256) * 
           market_data.accrued_collateral_rewards_per_share / 
           (market_data.decimals_factor as u256)) - 
@@ -2837,7 +2857,7 @@ module money_market::ipx_money_market_core {
 
        // If the user has a loan in this market, he is entitled to rewards
        if(account.principal != 0) 
-        pending_loan_rewards = (
+        pending_loan_rewards = (account.loan_rewards as u256) + (
           (account.principal as u256) * 
           market_data.accrued_loan_rewards_per_share / 
           (market_data.decimals_factor as u256)) - 
@@ -2915,7 +2935,7 @@ module money_market::ipx_money_market_core {
     };
 
     // Make sure the user is solvent
-    total_collateral_in_usd > total_borrows_in_usd
+    total_collateral_in_usd >= total_borrows_in_usd
   }
 
   // Test functions 
