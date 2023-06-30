@@ -2961,7 +2961,7 @@ module money_market::ipx_money_market_core {
 
     // Get the list of the markets the user is in. 
     // No point to calculate the data for markets the user is not in.
-    let user_markets_in = borrow_mut_user_markets_in(&mut money_market_storage.markets_in_table, user);
+    let user_markets_in = borrow_user_markets_in(&money_market_storage.markets_in_table, user);
 
     let index = 0;
     let length = vector::length(user_markets_in);
