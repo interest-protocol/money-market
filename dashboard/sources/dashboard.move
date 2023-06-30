@@ -25,7 +25,8 @@ module dashboard::dashboard {
     borrow_cap: u64,
     collateral_cap: u64,
     ltv: u256,
-    accrued_timestamp: u64
+    accrued_timestamp: u64,
+    can_be_collateral: bool
   }
 
   public fun get_markets(storage: &mut MoneyMarketStorage, interest_rate_model_storage: &InterestRateModelStorage, clock_object: &Clock, user: address): vector<Market> {
@@ -56,7 +57,7 @@ module dashboard::dashboard {
           ipx_money_market_core::get_pending_rewards_by_key(storage, interest_rate_model_storage, clock_object, key, user)
         };
 
-      let (_, accrued_timestamp, borrow_cap, collateral_cap, cash, _, ltv, _, allocation_points, _, _, total_collateral_base, total_collateral_elastic, total_loan_base, total_loan_elastic, _) = ipx_money_market_core::get_market_info_by_key(storage, key);
+      let (_, accrued_timestamp, borrow_cap, collateral_cap, cash, _, ltv, _, allocation_points, _, _, total_collateral_base, total_collateral_elastic, total_loan_base, total_loan_elastic, can_be_collateral) = ipx_money_market_core::get_market_info_by_key(storage, key);
 
       let market = Market {
         borrow_rate: ipx_money_market_core::get_borrow_rate_per_ms_by_key(storage, interest_rate_model_storage, key),
@@ -75,7 +76,8 @@ module dashboard::dashboard {
         borrow_cap,
         collateral_cap,
         ltv,
-        accrued_timestamp
+        accrued_timestamp,
+        can_be_collateral
       };
 
       vector::push_back(&mut result, market);
