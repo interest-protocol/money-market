@@ -9,6 +9,6 @@ MoneyMarket = { local = "../money-market" }
 
 [addresses]
 dashboard = "0x0"
-money_market = "0x4c24b307b94457f1a66bae100ef3bfd38c2cbf44ba1a2124337dd828916c5135"
+money_market = "0x48466dc11f9ccb87b4081ac7ee5cd9ead3a5c2db97a0fb49c8d3c2df1ecdaf07"
 std = "0x1"
 sui =  "0x2"
