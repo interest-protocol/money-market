@@ -2841,13 +2841,13 @@ module money_market::ipx_money_market_core {
       // Get the caller Account to update
       let account = borrow_account(&money_market_storage.accounts_table, user, market_key);
 
-      let pending_collateral_rewards = 0;
-      let pending_loan_rewards = 0;
+      let pending_collateral_rewards = (account.collateral_rewards as u256);
+      let pending_loan_rewards = (account.loan_rewards as u256);
 
       // If the sender has shares already, we need to calculate his rewards before this deposit.
       if (account.shares != 0) 
         // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
-        pending_collateral_rewards = (account.collateral_rewards as u256) + (
+        pending_collateral_rewards = pending_collateral_rewards + (
           (account.shares as u256) * 
           market_data.accrued_collateral_rewards_per_share / 
           (market_data.decimals_factor as u256)) - 
@@ -2855,7 +2855,7 @@ module money_market::ipx_money_market_core {
 
        // If the user has a loan in this market, he is entitled to rewards
        if(account.principal != 0) 
-        pending_loan_rewards = (account.loan_rewards as u256) + (
+        pending_loan_rewards = pending_loan_rewards + (
           (account.principal as u256) * 
           market_data.accrued_loan_rewards_per_share / 
           (market_data.decimals_factor as u256)) - 
