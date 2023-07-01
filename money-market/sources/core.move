@@ -2880,6 +2880,9 @@ module money_market::ipx_money_market_core {
     market_key: String,
     user: address
   ): u64 {
+    // If a user does not have an account, he has no rewards
+    if (!account_exists(money_market_storage, user, market_key)) return 0;
+
         // Reward information in memory
     let suid_interest_rate_per_ms = money_market_storage.suid_interest_rate_per_ms;
     let ipx_per_ms = money_market_storage.ipx_per_ms;
