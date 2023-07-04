@@ -58,7 +58,6 @@ module sui_dollar::suid {
             b"SUID",
             b"Sui Dollar",
             b"Interest Protocol Sui Stable Coin",
-            // TODO need to update the logo URL to put on Arweave
             option::some(url::new_unsafe_from_bytes(b"https://interestprotocol.infura-ipfs.io/ipfs/QmTZtraqcGAJHA2BLsHK2EK6xzv1kz36LvGZiUpj493Q7a")),
             ctx
         );
