@@ -1,7 +1,7 @@
 [package]
 name = "MoneyMarket"
 version = "0.0.1"
-published-at = "0x48466dc11f9ccb87b4081ac7ee5cd9ead3a5c2db97a0fb49c8d3c2df1ecdaf07"
+published-at = "0xe8188db486c521ddaa41508ef64cc8626c6039f1285b16ef6837bc3ade0ff5ec"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
@@ -22,7 +22,7 @@ SuiDollar = { local = "../sui-dollar" }
 IPX = { local = "./dependencies/ipx" }
 
 [addresses]
-money_market = "0x48466dc11f9ccb87b4081ac7ee5cd9ead3a5c2db97a0fb49c8d3c2df1ecdaf07"
+money_market = "0xe8188db486c521ddaa41508ef64cc8626c6039f1285b16ef6837bc3ade0ff5ec"
 std = "0x1"
 sui =  "0x2"
 treasury = "0xCAFE"
