@@ -1802,17 +1802,17 @@ module money_market::ipx_money_market_core {
 
   /**
   * @notice It allows the admin to transfer the rights to a new admin
-  * @param whirpool_admin_cap The MoneyMarketAdminCap
+  * @param  admin_cap The MoneyMarketAdminCap
   * @param new_admin The address f the new admin
   * Requirements: 
   * - The new_admin cannot be the address zero.
   */
   entry public fun transfer_admin_cap(
-    whirpool_admin_cap: MoneyMarketAdminCap, 
+    admin_cap: MoneyMarketAdminCap, 
     new_admin: address
   ) {
     assert!(new_admin != @0x0, ERROR_NO_ADDRESS_ZERO);
-    transfer::transfer(whirpool_admin_cap, new_admin);
+    transfer::transfer(admin_cap, new_admin);
     emit(NewAdmin { admin: new_admin });
   }
 
