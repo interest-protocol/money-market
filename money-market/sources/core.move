@@ -47,7 +47,7 @@ module money_market::ipx_money_market_core {
   const ERROR_NOT_ENOUGH_CASH_TO_WITHDRAW: u64 = 1;
   const ERROR_NOT_ENOUGH_CASH_TO_LEND: u64 = 2;
   const ERROR_VALUE_TOO_HIGH: u64 = 3;
-  const ERROR_NOT_ENOUGH_SHARES_IN_THE_ACCOUNT: u64 = 4;
+    const ERROR_WRONG_MARKET_ID: u64 = 4;
   const ERROR_NO_ADDRESS_ZERO: u64 = 5;
   const ERROR_MARKET_IS_PAUSED: u64 = 6;
   const ERROR_MARKET_NOT_UP_TO_DATE: u64 = 7;
@@ -63,12 +63,10 @@ module money_market::ipx_money_market_core {
   const ERROR_ACCOUNT_LOAN_DOES_EXIST: u64 = 17;
   const ERROR_ZERO_LIQUIDATION_AMOUNT: u64 = 18;
   const ERROR_LIQUIDATOR_IS_BORROWER: u64 = 19;
-  const ERROR_MAX_COLLATERAL_REACHED: u64 = 20;
+  const ERROR_WRONG_REPAY_AMOUNT: u64 = 20;
   const ERROR_CAN_NOT_BE_COLLATERAL: u64 = 21;
   const ERROR_INTEREST_RATE_OUT_OF_BOUNDS: u64 = 22;
   const ERROR_FLASH_LOAN_UNDERWAY: u64 = 23;
-  const ERROR_WRONG_MARKET_ID: u64 = 24;
-  const ERROR_WRONG_REPAY_AMOUNT: u64 = 25;
 
   // OTW
   struct IPX_MONEY_MARKET_CORE has drop {}
@@ -82,7 +80,6 @@ module money_market::ipx_money_market_core {
     total_reserves: u64,
     accrued_timestamp: u64,
     borrow_cap: u64,
-    collateral_cap: u64,
     balance_value: u64, // cash
     is_paused: bool,
     can_be_collateral: bool,
@@ -193,7 +190,6 @@ module money_market::ipx_money_market_core {
 
   struct CreateMarket<phantom T> has copy, drop {
     borrow_cap: u64,
-    collateral_cap: u64,
     ltv: u256,
     reserve_factor: u256,
     allocation_points: u256,
@@ -463,8 +459,8 @@ module money_market::ipx_money_market_core {
 
     // Get the sender account struct
     let account = borrow_mut_account(&mut money_market_storage.accounts_table, sender, market_key);
-    // No point to proceed if the sender does not have any shares to withdraw.
-    assert!(account.shares >= shares_to_remove, ERROR_NOT_ENOUGH_SHARES_IN_THE_ACCOUNT);
+
+    let shares_to_remove = math::min(shares_to_remove, account.shares);
     
     // Math: we need to remove the decimals of shares during fixed point multiplication to maintain IPX decimal houses
     let pending_rewards = ((account.shares as u256) * 
@@ -699,7 +695,7 @@ module money_market::ipx_money_market_core {
     // Increase the cash in the market
     market_data.balance_value = market_data.balance_value + repay_amount;
     // Reduce the total principal
-    rebase::sub_base(&mut market_data.loan_rebase, safe_asset_principal, true);
+    rebase::sub_base(&mut market_data.loan_rebase, safe_asset_principal, false);
 
     // Remove the principal repaid from the user account
     account.principal = account.principal - safe_asset_principal;
@@ -1023,9 +1019,6 @@ module money_market::ipx_money_market_core {
 
     // If no time has passed since the last update, there is nothing to do.
     if (timestamp_ms_delta == 0) return;
-    
-    // SUID supports no interest rate loans
-    if (suid_interest_rate_per_ms == 0) return;
 
     // Calculate the interest rate % accumulated for all epochs since the last update
     let interest_rate = timestamp_ms_delta * suid_interest_rate_per_ms;
@@ -1344,7 +1337,6 @@ module money_market::ipx_money_market_core {
   * @param clock_object The shared Clock object
   * @param coin_metadata The CoinMetaData<T> of Coin<T>
   * @param borrow_cap The maximum value that can be borrowed for this market 
-  * @param collateral_cap The maximum amount of collateral that can be added to this market
   * @param ltv The loan to value ratio of this market 
   * @param allocation_points The % of rewards this market will get 
   * @param penalty_fee The % fee a user pays when liquidated with 9 decimals
@@ -1357,7 +1349,6 @@ module money_market::ipx_money_market_core {
     clock_object: &Clock,
     coin_metadata: &CoinMetadata<T>,
     borrow_cap: u64,
-    collateral_cap: u64,
     ltv: u256,
     allocation_points: u256,
     penalty_fee: u256,
@@ -1385,7 +1376,6 @@ module money_market::ipx_money_market_core {
         total_reserves: 0,
         accrued_timestamp: clock::timestamp_ms(clock_object),
         borrow_cap,
-        collateral_cap,
         balance_value: 0,
         is_paused: false,
         can_be_collateral,
@@ -1430,7 +1420,6 @@ module money_market::ipx_money_market_core {
     emit(
       CreateMarket<T> {
         borrow_cap,
-        collateral_cap,
         ltv,
         reserve_factor: INITIAL_RESERVE_FACTOR_MANTISSA,
         allocation_points,
@@ -1920,6 +1909,7 @@ module money_market::ipx_money_market_core {
   * @param clock_object The shared Clock object
   * @param asset The Coin<SUID> he is repaying. 
   * @param principal_to_repay The principle he wishes to repay
+  * @param principal_to_repay The principle he wishes to repay
   * @param sender The account, which the asset will be assigned to
   * @return Coin<SUID> extra
   * Requirements: 
@@ -1977,8 +1967,9 @@ module money_market::ipx_money_market_core {
 
     // If the sender send more Coin<SUID> then necessary, we return the extra to him
     let extra_coin = if (asset_value > repay_amount) { coin::split(&mut asset, asset_value - repay_amount, ctx) } else { coin::zero<SUID>(ctx) };
+    
     // Reduce the total principal
-    rebase::sub_base(&mut market_data.loan_rebase, safe_asset_principal, true);
+    rebase::sub_base(&mut market_data.loan_rebase, safe_asset_principal, false);
 
     // Remove the principal repaid from the user account
     account.principal = account.principal - safe_asset_principal;
@@ -2613,10 +2604,9 @@ module money_market::ipx_money_market_core {
   /**
   * @notice It unpacks a Market struct
   * @param money_market_storage The shared MoneyMarketStorage object
-  * @return (u64, u64, u64, u64, u64, bool, u256, u256, u256, u256, u256, u64, u64, u64, u64) (total_reserves, accrued_epoch, borrow_cap, collateral_cap, balance_value, is_paused, LTV, reserve_factor, allocation_points, accrued_collateral_rewards_per_share, accrued_loan_rewards_per_share, total_shares, total_collateral, total_principal, total_borrows)
+  * @return (u64, u64, u64, u64, u64, bool, u256, u256, u256, u256, u256, u64, u64, u64, u64) (total_reserves, accrued_epoch, borrow_cap, balance_value, is_paused, LTV, reserve_factor, allocation_points, accrued_collateral_rewards_per_share, accrued_loan_rewards_per_share, total_shares, total_collateral, total_principal, total_borrows)
   */
   public fun get_market_info<T>(money_market_storage: &MoneyMarketStorage): (
-    u64,
     u64,
     u64,
     u64,
@@ -2640,10 +2630,9 @@ module money_market::ipx_money_market_core {
   * @notice It unpacks a Market struct
   * @param money_market_storage The shared MoneyMarketStorage object
   * @param key The Market key
-  * @return (u64, u64, u64, u64, u64, bool, u256, u256, u256, u256, u256, u64, u64, u64, u64) (total_reserves, accrued_epoch, borrow_cap, collateral_cap, balance_value, is_paused, LTV, reserve_factor, allocation_points, accrued_collateral_rewards_per_share, accrued_loan_rewards_per_share, total_shares, total_collateral, total_principal, total_borrows)
+  * @return (u64, u64, u64, u64, u64, bool, u256, u256, u256, u256, u256, u64, u64, u64, u64) (total_reserves, accrued_epoch, borrow_cap, balance_value, is_paused, LTV, reserve_factor, allocation_points, accrued_collateral_rewards_per_share, accrued_loan_rewards_per_share, total_shares, total_collateral, total_principal, total_borrows)
   */
   public fun get_market_info_by_key(money_market_storage: &MoneyMarketStorage, key: String): (
-    u64,
     u64,
     u64,
     u64,
@@ -2665,7 +2654,6 @@ module money_market::ipx_money_market_core {
       market_data.total_reserves,
       market_data.accrued_timestamp,
       market_data.borrow_cap,
-      market_data.collateral_cap,
       market_data.balance_value,
       market_data.is_paused,
       market_data.ltv,
@@ -2699,7 +2687,6 @@ module money_market::ipx_money_market_core {
   */
   fun deposit_allowed(market_data: &Market) {
     assert!(!market_data.is_paused, ERROR_MARKET_IS_PAUSED);
-    assert!(market_data.collateral_cap >= rebase::elastic(&market_data.collateral_rebase), ERROR_MAX_COLLATERAL_REACHED);
   }
 
    /**

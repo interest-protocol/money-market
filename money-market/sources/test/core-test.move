@@ -149,7 +149,6 @@ module money_market::ipx_money_market_test {
         &clock_object,
         &btc_coin_metadata,
         BTC_BORROW_CAP,
-        BTC_BORROW_CAP * 2,
         700000000000000000, // 70% ltv
         500, // allocation points
         50000000000000000, // 5% penalty fee
@@ -164,7 +163,6 @@ module money_market::ipx_money_market_test {
         &clock_object,
         &eth_coin_metadata,
         ETH_BORROW_CAP,
-        ETH_BORROW_CAP * 2,
         650000000000000000, // 65% ltv
         700, // allocation points
         70000000000000000, // 7% penalty fee
@@ -180,7 +178,6 @@ module money_market::ipx_money_market_test {
         &clock_object,
         &ada_coin_metadata,
         ADA_BORROW_CAP,
-        ADA_BORROW_CAP * 2,
         500000000000000000, // 50% ltv
         900, // allocation points
         100000000000000000, // 10% penalty fee
@@ -195,7 +192,6 @@ module money_market::ipx_money_market_test {
         &clock_object,
         &suid_coin_metadata,
         SUID_BORROW_CAP,
-        0, // cannot be as collateral
         0, // 50% ltv
         500, // allocation points
         100000000000000000, // 10% penalty fee
@@ -288,7 +284,7 @@ module money_market::ipx_money_market_test {
 
       clock::increment_for_testing(&mut clock_object, 20000);
 
-      let (_, _, _, _, _, _, _, _, _, prev_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, prev_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       money_market::deposit<BTC>(
         &mut money_market_storage,
@@ -429,7 +425,7 @@ module money_market::ipx_money_market_test {
       let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
       let suid_storage = test::take_shared<SuiDollarStorage>(test);
 
-      let (_, _, _, _, _, _, _, _, _, prev_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, prev_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       let (_, _, _, _, prev_collateral_rewards_paid, _) = money_market::get_account_info<BTC>(&money_market_storage, bob);
 
@@ -583,7 +579,7 @@ module money_market::ipx_money_market_test {
         &interest_rate_model_storage,
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * 50000;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -632,7 +628,7 @@ module money_market::ipx_money_market_test {
         &interest_rate_model_storage
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * 4000000;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -786,7 +782,7 @@ module money_market::ipx_money_market_test {
       let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
       let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
 
-      let (_, _, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
 
       let (_, prev_loan, _, prev_loan_rewards, _, prev_loan_rewards_paid) = money_market::get_account_info<ETH>(&money_market_storage, alice);
 
@@ -895,40 +891,6 @@ module money_market::ipx_money_market_test {
   }
 
   #[test]
-  #[expected_failure(abort_code = money_market::ipx_money_market_core::ERROR_MAX_COLLATERAL_REACHED)]
-  fun test_fail_deposit_borrow_cap_reached() {
-    let scenario = scenario();
-
-    let test = &mut scenario;
-
-    init_test(test);
-
-    let (alice, _) = people();
-    let clock_object = clock::create_for_testing(ctx(test));
-
-    next_tx(test, alice);
-    {
-      let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
-      let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
-
-      money_market::deposit<BTC>(
-        &mut money_market_storage,
-        &interest_rate_model_storage,
-        &clock_object,
-        mint<BTC>(BTC_BORROW_CAP * 2 + 1, 0, ctx(test)),
-        alice,
-        ctx(test)
-      );
-
-      test::return_shared(interest_rate_model_storage);
-      test::return_shared(money_market_storage);
-   };
-
-    clock::destroy_for_testing(clock_object);
-    test::end(scenario);
-  }
-
-  #[test]
   #[expected_failure(abort_code = money_market::ipx_money_market_core::ERROR_SUID_OPERATION_NOT_ALLOWED)]
   fun test_fail_withdraw_suid() {
     let scenario = scenario();
@@ -959,51 +921,6 @@ module money_market::ipx_money_market_test {
       test::return_shared(money_market_storage); 
    };
     
-    clock::destroy_for_testing(clock_object);
-    test::end(scenario);
-  }
-
-  #[test]
-  #[expected_failure(abort_code = money_market::ipx_money_market_core::ERROR_NOT_ENOUGH_SHARES_IN_THE_ACCOUNT)]
-  fun test_fail_withdraw_not_enough_shares() {
-    let scenario = scenario();
-
-    let test = &mut scenario;
-
-    init_test(test);
-
-    let (alice, _) = people();
-    let clock_object = clock::create_for_testing(ctx(test));
-
-    next_tx(test, alice);
-    {
-      let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
-      let interest_rate_model_storage = test::take_shared<InterestRateModelStorage>(test);
-
-      money_market::deposit<BTC>(
-        &mut money_market_storage,
-        &interest_rate_model_storage,
-        &clock_object,
-        mint<BTC>(10, BTC_DECIMALS, ctx(test)),
-        alice,
-        ctx(test)
-      );
-
-      burn(money_market::withdraw<BTC>(
-        &mut money_market_storage, 
-        &interest_rate_model_storage,  
-        get_all_prices_potatoes(),
-        &clock_object,
-        (11 * BTC_DECIMALS_FACTOR as u64), 
-        alice,
-        ctx(test)
-      ));
-
-
-      test::return_shared(interest_rate_model_storage);
-      test::return_shared(money_market_storage); 
-   };
-
     clock::destroy_for_testing(clock_object);
     test::end(scenario);
   }
@@ -2260,7 +2177,7 @@ module money_market::ipx_money_market_test {
         2
       );
 
-      let (_, _, borrow_cap, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, borrow_cap, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       assert_eq(borrow_cap, 2);
 
@@ -2330,7 +2247,7 @@ module money_market::ipx_money_market_test {
         10000
       );
 
-      let (_, accrued_timestamp, _, _, _, _, _, reserve_factor, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, reserve_factor, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       assert_eq(accrued_timestamp, 12000);
       assert_eq(reserve_factor, 10000);
@@ -2445,7 +2362,7 @@ module money_market::ipx_money_market_test {
         ctx(test)
       );
 
-      let (total_reserves, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (total_reserves, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
 
       assert_eq(accrued_timestamp, 120000000);
       assert_eq(total_reserves, 0);
@@ -2710,7 +2627,7 @@ module money_market::ipx_money_market_test {
         100
       );
 
-      let (_, _, _, _, _, _, ltv, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, ltv, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       assert_eq(ltv, 100);
     
@@ -2750,7 +2667,7 @@ module money_market::ipx_money_market_test {
       );
 
       let suid_per_ms = money_market::get_interest_rate_per_ms(&money_market_storage);
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       assert_eq(accrued_timestamp, timestamp_delta);
       assert_eq((suid_per_ms as u256), 30000000 / MS_PER_YEAR);
@@ -2789,7 +2706,7 @@ module money_market::ipx_money_market_test {
         450
       );
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, allocation_points, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, allocation_points, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
       let total_allocation_points = money_market::get_total_allocation_points(&money_market_storage);
 
       assert_eq(accrued_timestamp, 4);
@@ -2833,16 +2750,16 @@ module money_market::ipx_money_market_test {
         450
       );
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ETH>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
       
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ADA>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<ADA>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, _, _, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
       
       let ipx_per_ms = money_market::get_ipx_per_ms(&money_market_storage);
@@ -2898,13 +2815,13 @@ module money_market::ipx_money_market_test {
       let money_market_admin_cap = test::take_from_address<MoneyMarketAdminCap>(test, alice);
       let money_market_storage = test::take_shared<MoneyMarketStorage>(test);
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, can_be_collateral) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, can_be_collateral) = money_market::get_market_info<BTC>(&money_market_storage);
 
       assert_eq(can_be_collateral, true);
 
       money_market::update_can_be_collateral<BTC>(&money_market_admin_cap, &mut money_market_storage, false);
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, can_be_collateral) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, can_be_collateral) = money_market::get_market_info<BTC>(&money_market_storage);
 
       assert_eq(can_be_collateral, false);
 
@@ -3015,7 +2932,7 @@ module money_market::ipx_money_market_test {
 
       clock::increment_for_testing(&mut clock_object, timestame_increase);
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -3069,7 +2986,7 @@ module money_market::ipx_money_market_test {
 
       clock::increment_for_testing(&mut clock_object, timestame_increase);
 
-      let (_, _, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);

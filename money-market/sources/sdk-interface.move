@@ -1,8 +1,9 @@
 module money_market::ipx_money_market_sdk_interface {
 
-  use sui::coin::{Coin};
+  use sui::coin::{Self, Coin};
   use sui::clock::{Clock};
   use sui::tx_context::{Self, TxContext};
+  use sui::pay;
 
   use ipx::ipx::{IPXStorage};
 
@@ -101,18 +102,21 @@ module money_market::ipx_money_market_sdk_interface {
     interest_rate_model_storage: &InterestRateModelStorage,
     clock_object: &Clock,
     asset_vector: vector<Coin<T>>,
-    asset_value: u64,
     principal_to_repay: u64,
     ctx: &mut TxContext   
   ) {
     let sender = tx_context::sender(ctx);
+
+    let asset = coin::zero<T>(ctx);
+
+    pay::join_vec(&mut asset, asset_vector);
     
     public_transfer_coin(
       money_market::repay<T>(
         money_market_storage,
         interest_rate_model_storage,
         clock_object,
-        handle_coin_vector<T>(asset_vector, asset_value, ctx),
+        asset,
         principal_to_repay,
         sender,
         ctx
@@ -167,19 +171,22 @@ module money_market::ipx_money_market_sdk_interface {
     suid_storage: &mut SuiDollarStorage,
     clock_object: &Clock,
     asset_vector: vector<Coin<SUID>>,
-    asset_value: u64,
     principal_to_repay: u64,
     ctx: &mut TxContext 
   ) {
 
     let sender = tx_context::sender(ctx);
 
+    let asset = coin::zero<SUID>(ctx);
+
+    pay::join_vec(&mut asset, asset_vector);
+
     public_transfer_coin(
       money_market::repay_suid(
         money_market_storage,
         suid_storage,
         clock_object,
-        handle_coin_vector<SUID>(asset_vector, asset_value, ctx),
+        asset,
         principal_to_repay,
         sender,
         ctx

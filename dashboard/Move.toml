@@ -3,12 +3,12 @@ name = "Dashboard"
 version = "0.0.1"
 
 [dependencies]
-MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet-v1.4.1" }
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.4.1"  }
+MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "testnet-v1.5.0" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.5.0"  }
 MoneyMarket = { local = "../money-market" }
 
 [addresses]
 dashboard = "0x0"
-money_market = "0xe8188db486c521ddaa41508ef64cc8626c6039f1285b16ef6837bc3ade0ff5ec"
+money_market = "0x0859f26d72943f64542c193938cd1cc420730203ced8f350e42a9b16a490f5c5"
 std = "0x1"
 sui =  "0x2"
