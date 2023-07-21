@@ -117,7 +117,7 @@ module money_market::ipx_money_market_test_2 {
 
       clock::increment_for_testing(&mut clock_object, timestame_increase);
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -171,7 +171,7 @@ module money_market::ipx_money_market_test_2 {
 
       clock::increment_for_testing(&mut clock_object, timestame_increase);
 
-      let (_, _, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -314,7 +314,7 @@ module money_market::ipx_money_market_test_2 {
 
       clock::increment_for_testing(&mut clock_object, timestame_increase);
 
-      let (_, _, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, prev_loan_rewards_per_share, _, _, _, _, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let (_, prev_loan, _, prev_loan_rewards, _, prev_loan_rewards_paid) = money_market::get_account_info<SUID>(&money_market_storage, alice);
 
@@ -528,7 +528,7 @@ module money_market::ipx_money_market_test_2 {
         &interest_rate_model_storage
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -554,10 +554,10 @@ module money_market::ipx_money_market_test_2 {
         ctx(test)
       ));
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
 
-      let (_, accrued_timestamp, _, _, balance_value, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, accrued_timestamp, _, balance_value, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
       assert_eq(total_borrows, 0);
       assert_eq(total_principal, 0);
@@ -724,8 +724,8 @@ module money_market::ipx_money_market_test_2 {
         &interest_rate_model_storage
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, btc_total_borrows, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<ETH>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, btc_total_borrows, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -754,7 +754,7 @@ module money_market::ipx_money_market_test_2 {
         ctx(test)
       ));
 
-      let (_, _, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, elastic_collateral, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, elastic_collateral, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       let (collateral, loan, _, _, collateral_rewards_paid, loan_rewards_paid) = money_market::get_account_info<BTC>(&money_market_storage, alice);
 
@@ -1244,7 +1244,7 @@ module money_market::ipx_money_market_test_2 {
         &interest_rate_model_storage
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -1269,10 +1269,10 @@ module money_market::ipx_money_market_test_2 {
         ctx(test)
       ));
 
-      let (_, accrued_timestamp, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, accrued_timestamp, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, _, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
 
-      let (_, accrued_timestamp, _, _, balance_value, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, accrued_timestamp, _, balance_value, _, _, _, _, _, _, _, _, total_principal, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
       assert_eq(accrued_timestamp, timestame_increase);
       assert_eq(total_borrows, 0);
       assert_eq(total_principal, 0);
@@ -1436,8 +1436,8 @@ module money_market::ipx_money_market_test_2 {
         &interest_rate_model_storage
       );
 
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
-      let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, btc_total_borrows, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, total_borrows, _) = money_market::get_market_info<SUID>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, _, _, _, _, _, btc_total_borrows, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       let accumulated_interest_rate = interest_rate_per_ms * timestame_increase;
       let new_total_borrows = total_borrows + (d_fmul(total_borrows, accumulated_interest_rate) as u64);
@@ -1467,7 +1467,7 @@ module money_market::ipx_money_market_test_2 {
         ctx(test)
       ));
 
-      let (_, _, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, elastic_collateral, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
+      let (_, _, _, _, _, _, _, _, btc_accrued_collateral_rewards_per_share, _, _, elastic_collateral, _, _, _) = money_market::get_market_info<BTC>(&money_market_storage);
 
       let (collateral, loan, _, _, collateral_rewards_paid, loan_rewards_paid) = money_market::get_account_info<BTC>(&money_market_storage, alice);
 
